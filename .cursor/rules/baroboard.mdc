@@ -1,0 +1,52 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# CURSORRULES.md
+
+## 1. 브랜치 전략
+- `master`: 배포/운영 브랜치 (PR을 통해서만 머지)
+- `feature/*`: 기능 개발 브랜치 (ex. feature/redash-list)
+- `fix/*`: 버그 수정 브랜치
+- 모든 작업은 이슈/기능 단위로 브랜치 생성 후 PR
+
+## 2. 커밋 컨벤션
+- [타입]: [간단 설명]
+- 예시: `feat: 리대시 쿼리 리스트 패널 구현`, `fix: n8n 챗봇 임베드 오류 수정`
+- 타입: feat, fix, docs, style, refactor, test, chore
+
+## 3. PR(Pull Request) 규칙
+- PR 제목: [타입] 기능/이슈 요약
+- PR 본문: 구현 내용, 테스트 방법, 관련 이슈, 스크린샷(필요시)
+- 리뷰어 1인 이상 지정, 셀프 머지 금지
+
+## 4. 코드 컨벤션
+- TypeScript 사용 (any 지양)
+- ESLint, Prettier 적용
+- 함수/컴포넌트명은 카멜케이스, 파일명은 케밥케이스
+- 환경변수는 `.env.local`에 저장, 코드 내 하드코딩 금지
+- API 엔드포인트 등 민감 정보는 환경변수로 관리
+
+## 5. 폴더 구조
+- `/src/app`: Next.js app 디렉터리
+- `/src/components`: 공통 컴포넌트
+- `/src/features`: 도메인별 기능 모듈
+- `/src/lib`: 유틸리티, API 클라이언트 등
+
+## 6. 개발/배포
+- `npm run dev`로 개발 서버 실행
+- PR 머지 전 `npm run lint`/`npm run build`로 빌드 및 린트 확인
+- 배포는 master 브랜치 기준
+
+## 7. 기타
+- 문서화: PRD.md, README.md, CURSORRULES.md 최신화
+- 코드리뷰는 기능/구조/컨벤션/보안/확장성 관점에서 진행
+- 외부 API(리대시, n8n) 연동 시 예외처리 및 에러 핸들링 필수
+
+## 8. 주요색상
+- 바이탈오렌지(vitalorange): #fa5014, 바로보드의 키 컬러
+
+---
+
+> 본 규칙은 프로젝트 상황에 따라 변경될 수 있습니다. 변경 시 팀원과 공유 필수. 
