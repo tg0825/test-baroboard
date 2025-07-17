@@ -25,7 +25,7 @@ const GNB = () => {
           B
         </div>
         <h1 className={`${isMobile ? 'text-lg' : 'text-xl'} font-bold text-white m-0`}>
-          바로보드
+          Baroboard
         </h1>
       </div>
 

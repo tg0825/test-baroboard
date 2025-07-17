@@ -3,6 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import Container from './Container';
+import { db, analytics } from '../firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { logEvent } from 'firebase/analytics';
 
 interface DashboardProps {
   initialQueryId?: number | null;
@@ -11,9 +14,46 @@ interface DashboardProps {
 const Dashboard = ({ initialQueryId }: DashboardProps) => {
   const [selectedData, setSelectedData] = useState<{ [key: string]: unknown } | null>(null);
 
+  // Firebase에 쿼리 선택 정보 저장
+  const saveQuerySelection = async (data: { [key: string]: unknown }) => {
+    try {
+      await addDoc(collection(db, 'query_selections'), {
+        ...data,
+        selectedAt: serverTimestamp(),
+        sessionId: sessionStorage.getItem('sessionId') || 'anonymous'
+      });
+      console.log('쿼리 선택 정보가 Firebase에 저장되었습니다.');
+    } catch (error) {
+      console.error('Firebase 저장 중 오류 발생:', error);
+    }
+  };
+
+  // Firebase Analytics 이벤트 추적
+  const trackQuerySelection = (data: { [key: string]: unknown }) => {
+    if (analytics) {
+      logEvent(analytics, 'query_selected', {
+        query_id: data.id,
+        query_name: data.query,
+        query_type: data.type
+      });
+      console.log('Analytics 이벤트가 추적되었습니다.');
+    }
+  };
+
   const handleQuerySelect = (data: { [key: string]: unknown }) => {
     setSelectedData(data);
+    
+    // Firebase에 데이터 저장 및 Analytics 추적
+    saveQuerySelection(data);
+    trackQuerySelection(data);
   };
+
+  // 세션 ID 생성 (한 번만)
+  useEffect(() => {
+    if (!sessionStorage.getItem('sessionId')) {
+      sessionStorage.setItem('sessionId', 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9));
+    }
+  }, []);
 
   // 초기 쿼리 ID가 있을 때 자동으로 해당 쿼리를 선택
   useEffect(() => {
@@ -67,6 +107,9 @@ const Dashboard = ({ initialQueryId }: DashboardProps) => {
       };
       
       setSelectedData(data);
+      // 초기 로드시에도 Firebase에 저장 및 Analytics 추적
+      saveQuerySelection(data);
+      trackQuerySelection(data);
     }
   }, [initialQueryId]);
 

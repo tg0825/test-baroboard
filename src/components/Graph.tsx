@@ -164,7 +164,6 @@ const Graph = ({ data }: { data: { [key: string]: unknown } }) => {
   // 차트 패턴을 결정하는 함수
   const getChartPattern = () => {
     const queryId = data.id as number;
-    const queryType = data.type as string;
     
     // 쿼리 ID를 기준으로 다른 패턴 결정
     const patternIndex = queryId % 5;

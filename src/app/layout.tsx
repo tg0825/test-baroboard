@@ -16,8 +16,60 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Baroboard - Query Dashboard",
-  description: "Dashboard with Redash queries and n8n chatbot integration",
+  metadataBase: new URL('https://baroboard.web.app'),
+  title: "Baroboard",
+  description: "Dashboard Analytics Platform - Real-time data visualization and query management system",
+  keywords: ["dashboard", "analytics", "data visualization", "query management", "business intelligence"],
+  authors: [{ name: "AInity4" }],
+  creator: "AInity4",
+  publisher: "AInity4",
+  
+  // Open Graph
+  openGraph: {
+    title: "Baroboard",
+    description: "Dashboard Analytics Platform - Real-time data visualization and query management system",
+    url: "https://baroboard.web.app",
+    siteName: "Baroboard",
+    images: [
+      {
+        url: "/og-image.svg",
+        width: 1200,
+        height: 630,
+        alt: "Baroboard - Dashboard Analytics Platform",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  
+  // Twitter Card
+  twitter: {
+    card: "summary_large_image",
+    title: "Baroboard",
+    description: "Dashboard Analytics Platform - Real-time data visualization and query management system",
+    images: ["/og-image.svg"],
+    creator: "@AInity4",
+  },
+  
+  // Additional metadata
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  
+  // Icons
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({

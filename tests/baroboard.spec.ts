@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Baroboard Dashboard', () => {
+test.describe('Baroboard', () => {
   test('should display GNB with correct styling', async ({ page }) => {
     await page.goto('/');
     
