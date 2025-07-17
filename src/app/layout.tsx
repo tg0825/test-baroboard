@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://baroboard.web.app'),
-  title: "Baroboard",
+  title: "BaroBoard",
   description: "Dashboard Analytics Platform - Real-time data visualization and query management system",
   keywords: ["dashboard", "analytics", "data visualization", "query management", "business intelligence"],
   authors: [{ name: "AInity4" }],
@@ -26,10 +26,10 @@ export const metadata: Metadata = {
   
   // Open Graph
   openGraph: {
-    title: "Baroboard",
+    title: "BaroBoard",
     description: "Dashboard Analytics Platform - Real-time data visualization and query management system",
     url: "https://baroboard.web.app",
-    siteName: "Baroboard",
+    siteName: "BaroBoard",
     images: [
       {
         url: "/og-image.svg",
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
   // Twitter Card
   twitter: {
     card: "summary_large_image",
-    title: "Baroboard",
+    title: "BaroBoard",
     description: "Dashboard Analytics Platform - Real-time data visualization and query management system",
     images: ["/og-image.svg"],
     creator: "@AInity4",
