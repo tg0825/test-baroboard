@@ -51,37 +51,15 @@ const FloatingChatbot = () => {
       {/* 떠있는 챗봇 버튼 */}
       <button
         onClick={toggleChat}
-        style={{
-          position: 'fixed',
-          bottom: isMobile ? '16px' : '20px',
-          right: isMobile ? '16px' : '20px',
-          width: isMobile ? '56px' : '60px',
-          height: isMobile ? '56px' : '60px',
-          borderRadius: '50%',
-          backgroundColor: '#007bff',
-          color: 'white',
-          border: 'none',
-          cursor: 'pointer',
-          boxShadow: '0 4px 12px rgba(0, 123, 255, 0.3)',
-          fontSize: isMobile ? '20px' : '24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          transition: 'all 0.3s ease',
-        }}
-        onMouseEnter={(e) => {
-          if (!isMobile) {
-            e.currentTarget.style.transform = 'scale(1.1)';
-            e.currentTarget.style.backgroundColor = '#0056b3';
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!isMobile) {
-            e.currentTarget.style.transform = 'scale(1)';
-            e.currentTarget.style.backgroundColor = '#007bff';
-          }
-        }}
+        className={`
+          fixed z-[1000]
+          ${isMobile ? 'bottom-4 right-4 w-14 h-14 text-xl' : 'bottom-5 right-5 w-15 h-15 text-2xl'}
+          rounded-full bg-primary-main text-white border-none cursor-pointer
+          shadow-button flex items-center justify-center
+          transition-all duration-300 ease-in-out
+          hover:bg-primary-dark hover:shadow-strong hover:scale-110
+          mobile-touch
+        `}
       >
         {isOpen ? '✕' : '💬'}
       </button>
@@ -89,51 +67,31 @@ const FloatingChatbot = () => {
       {/* 채팅창 */}
       {isOpen && (
         <div
-          style={{
-            position: 'fixed',
-            bottom: isMobile ? '80px' : '90px',
-            right: isMobile ? '16px' : '20px',
-            left: isMobile ? '16px' : 'auto',
-            width: isMobile ? 'calc(100vw - 32px)' : '400px',
-            height: isMobile ? 'calc(100vh - 120px)' : '600px',
-            maxHeight: isMobile ? '80vh' : '600px',
-            backgroundColor: 'white',
-            borderRadius: isMobile ? '16px' : '12px',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
-            zIndex: 999,
-            overflow: 'hidden',
-            border: '1px solid #e1e5e9',
-          }}
+          className={`
+            fixed z-[999] bg-background-main shadow-strong overflow-hidden border border-border-light
+            ${isMobile 
+              ? 'bottom-20 left-4 right-4 h-[calc(100vh-120px)] max-h-[80vh] rounded-2xl' 
+              : 'bottom-[90px] right-5 w-[400px] h-[600px] rounded-xl'
+            }
+          `}
         >
-          <div
-            style={{
-              backgroundColor: '#007bff',
-              color: 'white',
-              padding: isMobile ? '20px 16px' : '16px',
-              fontWeight: 'bold',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              fontSize: isMobile ? '18px' : '16px',
-            }}
-          >
-            <span>AI 어시스턴트</span>
+          <div className={`
+            bg-primary-main text-white font-bold flex justify-between items-center
+            ${isMobile ? 'px-4 py-5 text-lg' : 'px-4 py-4 text-base'}
+          `}>
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🤖</span>
+              <span>AI 어시스턴트</span>
+            </div>
             <button
               onClick={toggleChat}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'white',
-                fontSize: isMobile ? '20px' : '18px',
-                cursor: 'pointer',
-                padding: '0',
-                width: isMobile ? '32px' : '24px',
-                height: isMobile ? '32px' : '24px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '50%',
-              }}
+              className={`
+                bg-transparent border-none text-white cursor-pointer
+                ${isMobile ? 'text-xl w-8 h-8' : 'text-lg w-7 h-7'}
+                flex items-center justify-center rounded-full
+                transition-colors duration-200 hover:bg-white hover:bg-opacity-20
+                p-1
+              `}
             >
               ✕
             </button>
@@ -142,10 +100,10 @@ const FloatingChatbot = () => {
           {/* n8n chat이 렌더링될 컨테이너 */}
           <div
             ref={setChatContainer}
-            style={{
-              height: isMobile ? 'calc(100% - 76px)' : 'calc(100% - 64px)',
-              width: '100%',
-            }}
+            className={`
+              ${isMobile ? 'h-[calc(100%-76px)]' : 'h-[calc(100%-64px)]'}
+              w-full bg-background-soft
+            `}
           />
         </div>
       )}

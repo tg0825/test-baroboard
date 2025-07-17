@@ -4,6 +4,7 @@ import "./globals.css";
 import GNB from "@/components/GNB";
 import Sidebar from "@/components/Sidebar";
 import FloatingChatbot from "@/components/FloatingChatbot";
+import Footer from "@/components/Footer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,11 +29,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        <GNB />
-        <div style={{ paddingTop: '60px' }}>
-          <Sidebar />
+        <div className="h-screen overflow-hidden">
+          <GNB />
+          <div className="pt-15 pb-8 h-full">
+            <Sidebar />
+          </div>
+          <FloatingChatbot />
+          <Footer />
         </div>
-        <FloatingChatbot />
       </body>
     </html>
   );

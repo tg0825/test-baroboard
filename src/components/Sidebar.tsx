@@ -29,7 +29,6 @@ const Sidebar = () => {
   }));
 
   const handleQueryClick = (query: { id: number; name: string; description: string; type: string }) => {
-    // 임시 데이터 설정
     const data = { 
       query: query.name, 
       id: query.id,
@@ -40,7 +39,6 @@ const Sidebar = () => {
     };
     setSelectedData(data);
     
-    // 모바일에서 쿼리 선택 시 사이드바 자동 닫기
     if (isMobile) {
       setIsMobileMenuOpen(false);
     }
@@ -50,26 +48,22 @@ const Sidebar = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
+  const getTypeStyles = (type: string) => {
+    switch (type) {
+      case '분석': return 'border-primary-main text-primary-main bg-primary-main';
+      case '보고서': return 'border-success-main text-success-main bg-success-main';
+      case '대시보드': return 'border-warning-main text-warning-main bg-warning-main';
+      default: return 'border-secondary-main text-secondary-main bg-secondary-main';
+    }
+  };
+
   return (
-    <div style={{ display: 'flex', height: '100vh', position: 'relative' }}>
+    <div className="flex h-full relative">
       {/* 모바일 햄버거 메뉴 버튼 */}
       {isMobile && (
         <button
           onClick={toggleMobileMenu}
-          style={{
-            position: 'fixed',
-            top: '70px',
-            left: '20px',
-            zIndex: 1001,
-            background: '#007bff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            padding: '12px',
-            cursor: 'pointer',
-            fontSize: '18px',
-            boxShadow: '0 2px 8px rgba(0, 123, 255, 0.3)',
-          }}
+          className="fixed top-[70px] left-5 z-[1001] bg-primary-main text-white border-none rounded-lg p-3 cursor-pointer text-lg shadow-button"
         >
           {isMobileMenuOpen ? '✕' : '☰'}
         </button>
@@ -79,94 +73,89 @@ const Sidebar = () => {
       {isMobile && isMobileMenuOpen && (
         <div
           onClick={() => setIsMobileMenuOpen(false)}
-          style={{
-            position: 'fixed',
-            top: '60px',
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            zIndex: 999,
-          }}
+          className="fixed top-15 left-0 right-0 bottom-8 bg-black bg-opacity-50 z-[999]"
         />
       )}
 
       {/* 사이드바 */}
       <div 
-        style={{ 
-          width: isMobile ? '280px' : '300px',
-          background: '#f4f4f4', 
-          padding: '10px', 
-          overflowY: 'auto',
-          position: isMobile ? 'fixed' : 'relative',
-          top: isMobile ? '60px' : '0',
-          left: isMobile && !isMobileMenuOpen ? '-280px' : '0',
-          height: isMobile ? 'calc(100vh - 60px)' : '100vh',
-          zIndex: 1000,
-          transition: isMobile ? 'left 0.3s ease' : 'none',
-          boxShadow: isMobile ? '2px 0 8px rgba(0, 0, 0, 0.1)' : 'none',
-        }}
+        className={`
+          ${isMobile ? 'w-[280px]' : 'w-[300px]'} 
+          bg-background-soft p-4 overflow-y-auto
+          ${isMobile ? 'fixed' : 'relative'}
+          ${isMobile ? 'top-15' : 'top-0'}
+          ${isMobile && !isMobileMenuOpen ? '-left-[280px]' : 'left-0'}
+          ${isMobile ? 'h-[calc(100vh-92px)]' : 'h-full'}
+          z-[1000] transition-all duration-300 ease-in-out
+          ${isMobile ? 'shadow-medium' : ''}
+          border-r border-border-light mobile-hide-scrollbar
+        `}
       >
-        <h2 style={{ 
-          marginTop: isMobile ? '60px' : '0',
-          fontSize: isMobile ? '18px' : '20px'
-        }}>
+        <h2 className={`
+          ${isMobile ? 'mt-0 mb-5 text-lg' : 'mt-4 mb-5 text-xl'} 
+          text-text-primary font-semibold
+        `}>
           쿼리 목록
         </h2>
-        <ul style={{ listStyle: 'none', padding: 0 }}>
-          {queryList.map((query) => (
-            <li 
-              key={query.id}
-              onClick={() => handleQueryClick(query)}
-              style={{ 
-                padding: isMobile ? '12px 8px' : '8px', 
-                margin: '4px 0', 
-                background: '#fff', 
-                borderRadius: '4px',
-                cursor: 'pointer',
-                borderLeft: `4px solid ${query.type === '분석' ? '#007bff' : query.type === '보고서' ? '#28a745' : '#ffc107'}`,
-                fontSize: isMobile ? '14px' : '16px',
-              }}
-            >
-              <div style={{ 
-                fontWeight: 'bold', 
-                fontSize: isMobile ? '13px' : '14px',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                marginBottom: '4px'
-              }}>
-                {query.name}
-              </div>
-              <div style={{ fontSize: isMobile ? '11px' : '12px', color: '#666' }}>
-                {query.type}
-              </div>
-            </li>
-          ))}
+        
+        <ul className="list-none p-0 m-0 space-y-2">
+          {queryList.map((query) => {
+            const typeStyles = getTypeStyles(query.type);
+            return (
+              <li 
+                key={query.id}
+                onClick={() => handleQueryClick(query)}
+                className={`
+                  p-3 bg-background-main rounded-lg cursor-pointer
+                  border-l-4 ${typeStyles.split(' ')[0]}
+                  ${isMobile ? 'text-sm' : 'text-base'}
+                  transition-all duration-200 shadow-soft card-hover
+                  hover:bg-primary-pale
+                `}
+              >
+                <div className={`
+                  font-semibold 
+                  ${isMobile ? 'text-xs' : 'text-sm'}
+                  overflow-hidden text-ellipsis whitespace-nowrap
+                  mb-1.5 text-text-primary
+                `}>
+                  {query.name}
+                </div>
+                <div className={`
+                  ${isMobile ? 'text-[11px]' : 'text-xs'} 
+                  ${typeStyles.split(' ')[1]}
+                  font-medium flex items-center gap-1
+                `}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${typeStyles.split(' ')[2]}`}></span>
+                  {query.type}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </div>
 
       {/* 메인 콘텐츠 영역 */}
-      <div style={{ 
-        flexGrow: 1,
-        marginLeft: isMobile ? '0' : '0',
-        minHeight: '100vh',
-        background: '#ffffff'
-      }}>
+      <div className="flex-1 h-full bg-background-main">
         {selectedData ? (
           <Graph data={selectedData} />
         ) : (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100vh',
-            color: '#666',
-            fontSize: isMobile ? '16px' : '18px',
-            textAlign: 'center',
-            padding: '20px'
-          }}>
-            {isMobile ? '상단 메뉴를 눌러 쿼리를 선택하세요' : '좌측에서 쿼리를 선택하세요'}
+          <div className={`
+            flex items-center justify-center h-full text-text-secondary
+            ${isMobile ? 'text-base' : 'text-lg'}
+            text-center p-5 bg-gradient-soft
+          `}>
+            <div className="card p-10 shadow-medium border border-border-light">
+              <div className="text-5xl mb-4 text-primary-main">
+                📊
+              </div>
+              <div className="text-text-primary font-semibold mb-2">
+                {isMobile ? '상단 메뉴를 눌러 쿼리를 선택하세요' : '좌측에서 쿼리를 선택하세요'}
+              </div>
+              <div className="text-text-muted text-sm">
+                분석하고 싶은 쿼리를 클릭하면 결과를 확인할 수 있습니다
+              </div>
+            </div>
           </div>
         )}
       </div>
