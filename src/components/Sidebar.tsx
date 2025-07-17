@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import Graph from './Graph';
 
-const Sidebar = () => {
-  const [selectedData, setSelectedData] = useState<{ [key: string]: unknown } | null>(null);
+interface SidebarProps {
+  onQuerySelect: (data: { [key: string]: unknown }) => void;
+}
+
+const Sidebar = ({ onQuerySelect }: SidebarProps) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -20,13 +22,51 @@ const Sidebar = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // 100개의 더미 쿼리 데이터 생성 (한글 긴 텍스트)
-  const queryList = Array.from({ length: 100 }, (_, index) => ({
-    id: index + 1,
-    name: `사용자 행동 분석 및 매출 성과 보고서 생성을 위한 데이터 추출 쿼리 ${index + 1}번`,
-    description: `매출 데이터와 사용자 행동 패턴을 분석하여 비즈니스 인사이트를 도출하는 쿼리 ${index + 1}`,
-    type: index % 3 === 0 ? '분석' : index % 3 === 1 ? '보고서' : '대시보드'
-  }));
+  // 100개의 더미 쿼리 데이터 생성 (배달대행사 관련)
+  const deliveryQueries = [
+    "배달 기사별 일일 주문 완료율 분석",
+    "시간대별 배달 주문량 추이 리포트",
+    "음식점 카테고리별 주문 현황 대시보드",
+    "배달 지연 원인 분석 및 개선방안",
+    "고객 만족도 점수별 주문 분포",
+    "배달 거리별 평균 소요시간 분석",
+    "요일별 주문량 변화 트렌드",
+    "우천시 배달 성과 영향 분석",
+    "프로모션 이벤트 효과 측정 리포트",
+    "배달 기사 근무시간 최적화 분석",
+    "주문 취소율 감소 전략 리포트",
+    "신규 고객 유입 경로 분석",
+    "재주문률 향상 방안 연구",
+    "배달료 정책 변경 영향 분석",
+    "앱 사용자 행동 패턴 분석",
+    "주요 경쟁사 대비 배달시간 비교",
+    "지역별 배달 수요 예측 모델",
+    "배달 기사 교육 효과 측정",
+    "고객 리뷰 감정 분석 리포트",
+    "메뉴 인기도별 주문 패턴 분석",
+    "배달팁 금액별 주문 완료율",
+    "월별 매출 성장률 추이 분석",
+    "배달 앱 다운로드 수 증가율",
+    "고객 연령대별 주문 선호도",
+    "배달 포장 품질 만족도 조사",
+    "실시간 배달 현황 모니터링",
+    "주문 집중 시간대 배치 최적화",
+    "신메뉴 출시 효과 분석 리포트",
+    "배달 사고 발생률 감소 전략",
+    "고객 대기시간 단축 방안 연구"
+  ];
+
+  const queryList = Array.from({ length: 100 }, (_, index) => {
+    const queryIndex = index % deliveryQueries.length;
+    const queryNumber = Math.floor(index / deliveryQueries.length) + 1;
+    
+    return {
+      id: index + 1,
+      name: queryNumber > 1 ? `${deliveryQueries[queryIndex]} (${queryNumber}차)` : deliveryQueries[queryIndex],
+      description: `배달대행사 운영 최적화를 위한 데이터 분석 쿼리 ${index + 1}`,
+      type: index % 3 === 0 ? '분석' : index % 3 === 1 ? '보고서' : '대시보드'
+    };
+  });
 
   const handleQueryClick = (query: { id: number; name: string; description: string; type: string }) => {
     const data = { 
@@ -37,7 +77,7 @@ const Sidebar = () => {
       result: Math.random() * 100,
       timestamp: new Date().toISOString()
     };
-    setSelectedData(data);
+    onQuerySelect(data);
     
     if (isMobile) {
       setIsMobileMenuOpen(false);
@@ -58,7 +98,7 @@ const Sidebar = () => {
   };
 
   return (
-    <div className="flex h-full relative">
+    <>
       {/* 모바일 햄버거 메뉴 버튼 */}
       {isMobile && (
         <button
@@ -89,6 +129,7 @@ const Sidebar = () => {
           z-[1000] transition-all duration-300 ease-in-out
           ${isMobile ? 'shadow-medium' : ''}
           border-r border-border-light mobile-hide-scrollbar
+          pt-15
         `}
       >
         <h2 className={`
@@ -134,32 +175,7 @@ const Sidebar = () => {
           })}
         </ul>
       </div>
-
-      {/* 메인 콘텐츠 영역 */}
-      <div className="flex-1 h-full bg-background-main">
-        {selectedData ? (
-          <Graph data={selectedData} />
-        ) : (
-          <div className={`
-            flex items-center justify-center h-full text-text-secondary
-            ${isMobile ? 'text-base' : 'text-lg'}
-            text-center p-5 bg-gradient-soft
-          `}>
-            <div className="card p-10 shadow-medium border border-border-light">
-              <div className="text-5xl mb-4 text-primary-main">
-                📊
-              </div>
-              <div className="text-text-primary font-semibold mb-2">
-                {isMobile ? '상단 메뉴를 눌러 쿼리를 선택하세요' : '좌측에서 쿼리를 선택하세요'}
-              </div>
-              <div className="text-text-muted text-sm">
-                분석하고 싶은 쿼리를 클릭하면 결과를 확인할 수 있습니다
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+    </>
   );
 };
 
