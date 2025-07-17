@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface SidebarProps {
   onQuerySelect: (data: { [key: string]: unknown }) => void;
@@ -9,6 +10,8 @@ interface SidebarProps {
 const Sidebar = ({ onQuerySelect }: SidebarProps) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const router = useRouter();
 
   // 화면 크기 감지
   useEffect(() => {
@@ -68,6 +71,12 @@ const Sidebar = ({ onQuerySelect }: SidebarProps) => {
     };
   });
 
+  // 검색어로 쿼리 리스트 필터링
+  const filteredQueryList = queryList.filter(query =>
+    query.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    query.description.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const handleQueryClick = (query: { id: number; name: string; description: string; type: string }) => {
     const data = { 
       query: query.name, 
@@ -77,6 +86,11 @@ const Sidebar = ({ onQuerySelect }: SidebarProps) => {
       result: Math.random() * 100,
       timestamp: new Date().toISOString()
     };
+    
+    // URL 변경
+    router.push(`/query/${query.id}`);
+    
+    // 상위 컴포넌트에 데이터 전달
     onQuerySelect(data);
     
     if (isMobile) {
@@ -129,50 +143,100 @@ const Sidebar = ({ onQuerySelect }: SidebarProps) => {
           z-[1000] transition-all duration-300 ease-in-out
           ${isMobile ? 'shadow-medium' : ''}
           border-r border-border-light mobile-hide-scrollbar
-          pt-15
+          pt-20
         `}
       >
         <h2 className={`
-          ${isMobile ? 'mt-0 mb-5 text-lg' : 'mt-4 mb-5 text-xl'} 
+          ${isMobile ? 'mt-0 mb-5 text-lg' : 'mt-0 mb-5 text-xl'} 
           text-text-primary font-semibold
         `}>
           쿼리 목록
         </h2>
         
+        {/* 검색 입력창 */}
+        <div className="mb-4">
+          <div className="relative">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="쿼리 검색..."
+              className={`
+                w-full 
+                ${isMobile ? 'px-3 py-2 text-sm' : 'px-4 py-3 text-base'}
+                border border-border-light rounded-lg
+                bg-background-main text-text-primary
+                placeholder:text-text-muted
+                focus:outline-none focus:ring-2 focus:ring-primary-main focus:border-primary-main
+                transition-all duration-200
+              `}
+            />
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-text-muted">
+              🔍
+            </div>
+          </div>
+          {searchQuery && (
+            <div className={`
+              ${isMobile ? 'mt-2 text-xs' : 'mt-2 text-sm'} 
+              text-text-secondary
+            `}>
+              {filteredQueryList.length}개의 결과 찾음
+            </div>
+          )}
+        </div>
+
         <ul className="list-none p-0 m-0 space-y-2">
-          {queryList.map((query) => {
-            const typeStyles = getTypeStyles(query.type);
-            return (
-              <li 
-                key={query.id}
-                onClick={() => handleQueryClick(query)}
-                className={`
-                  p-3 bg-background-main rounded-lg cursor-pointer
-                  border-l-4 ${typeStyles.split(' ')[0]}
-                  ${isMobile ? 'text-sm' : 'text-base'}
-                  transition-all duration-200 shadow-soft card-hover
-                  hover:bg-primary-pale
-                `}
-              >
-                <div className={`
-                  font-semibold 
-                  ${isMobile ? 'text-xs' : 'text-sm'}
-                  overflow-hidden text-ellipsis whitespace-nowrap
-                  mb-1.5 text-text-primary
-                `}>
-                  {query.name}
-                </div>
-                <div className={`
-                  ${isMobile ? 'text-[11px]' : 'text-xs'} 
-                  ${typeStyles.split(' ')[1]}
-                  font-medium flex items-center gap-1
-                `}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${typeStyles.split(' ')[2]}`}></span>
-                  {query.type}
-                </div>
-              </li>
-            );
-          })}
+          {filteredQueryList.length === 0 ? (
+            <li className="text-center py-8">
+              <div className="text-text-muted text-4xl mb-2">🔍</div>
+              <div className={`
+                ${isMobile ? 'text-sm' : 'text-base'} 
+                text-text-secondary font-medium mb-1
+              `}>
+                검색 결과가 없습니다
+              </div>
+              <div className={`
+                ${isMobile ? 'text-xs' : 'text-sm'} 
+                text-text-muted
+              `}>
+                다른 키워드로 검색해보세요
+              </div>
+            </li>
+          ) : (
+            filteredQueryList.map((query) => {
+              const typeStyles = getTypeStyles(query.type);
+              return (
+                <li 
+                  key={query.id}
+                  onClick={() => handleQueryClick(query)}
+                  className={`
+                    p-3 bg-background-main rounded-lg cursor-pointer
+                    border-l-4 ${typeStyles.split(' ')[0]}
+                    ${isMobile ? 'text-sm' : 'text-base'}
+                    transition-all duration-200 shadow-soft card-hover
+                    hover:bg-primary-pale
+                  `}
+                >
+                  <div className={`
+                    font-semibold 
+                    ${isMobile ? 'text-xs' : 'text-sm'}
+                    overflow-hidden text-ellipsis whitespace-nowrap
+                    mb-1.5 text-text-primary
+                  `}>
+                    {query.name}
+                  </div>
+                  <div className={`
+                    ${isMobile ? 'text-[11px]' : 'text-xs'} 
+                    ${typeStyles.split(' ')[1]}
+                    font-medium flex items-center gap-1
+                  `}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${typeStyles.split(' ')[2]}`}></span>
+                    {query.type}
+                  </div>
+                </li>
+              );
+            })
+          )}
         </ul>
       </div>
     </>

@@ -161,6 +161,165 @@ const Graph = ({ data }: { data: { [key: string]: unknown } }) => {
     },
   };
 
+  // 차트 패턴을 결정하는 함수
+  const getChartPattern = () => {
+    const queryId = data.id as number;
+    const queryType = data.type as string;
+    
+    // 쿼리 ID를 기준으로 다른 패턴 결정
+    const patternIndex = queryId % 5;
+    
+    switch (patternIndex) {
+      case 0: // 도넛 차트만
+        return 'doughnut-only';
+      case 1: // 라인 차트만
+        return 'line-only';
+      case 2: // 바 차트만
+        return 'bar-only';
+      case 3: // 라인 + 도넛
+        return 'line-doughnut';
+      case 4: // 모든 차트
+        return 'all-charts';
+      default:
+        return 'all-charts';
+    }
+  };
+
+  const chartPattern = getChartPattern();
+
+  // 패턴별 차트 렌더링 함수
+  const renderCharts = () => {
+    switch (chartPattern) {
+      case 'doughnut-only':
+        return (
+          <div className="grid gap-6 grid-cols-1">
+            <div className="bg-background-main border border-border-light rounded-lg p-4">
+              <h4 className={`
+                ${isMobile ? 'text-sm' : 'text-base'} 
+                font-semibold text-text-primary mb-4 text-center
+              `}>
+                주문 상태별 분포 분석
+              </h4>
+              <div className={`${isMobile ? 'h-[300px]' : 'h-[400px]'} flex justify-center`}>
+                <div className="w-full max-w-[500px]">
+                  <Doughnut data={chartData.doughnutData} options={doughnutOptions} />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'line-only':
+        return (
+          <div className="grid gap-6 grid-cols-1">
+            <div className="bg-background-main border border-border-light rounded-lg p-4">
+              <h4 className={`
+                ${isMobile ? 'text-sm' : 'text-base'} 
+                font-semibold text-text-primary mb-4 text-center
+              `}>
+                시간대별 주문량 트렌드 분석
+              </h4>
+              <div className={`${isMobile ? 'h-[250px]' : 'h-[350px]'}`}>
+                <Line data={chartData.lineData} options={chartOptions} />
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'bar-only':
+        return (
+          <div className="grid gap-6 grid-cols-1">
+            <div className="bg-background-main border border-border-light rounded-lg p-4">
+              <h4 className={`
+                ${isMobile ? 'text-sm' : 'text-base'} 
+                font-semibold text-text-primary mb-4 text-center
+              `}>
+                배달시간 성과 분석
+              </h4>
+              <div className={`${isMobile ? 'h-[250px]' : 'h-[350px]'}`}>
+                <Bar data={chartData.barData} options={chartOptions} />
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'line-doughnut':
+        return (
+          <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
+            <div className="bg-background-main border border-border-light rounded-lg p-4">
+              <h4 className={`
+                ${isMobile ? 'text-sm' : 'text-base'} 
+                font-semibold text-text-primary mb-4 text-center
+              `}>
+                주문량 추이
+              </h4>
+              <div className={`${isMobile ? 'h-[200px]' : 'h-[250px]'}`}>
+                <Line data={chartData.lineData} options={chartOptions} />
+              </div>
+            </div>
+
+            <div className="bg-background-main border border-border-light rounded-lg p-4">
+              <h4 className={`
+                ${isMobile ? 'text-sm' : 'text-base'} 
+                font-semibold text-text-primary mb-4 text-center
+              `}>
+                주문 상태 분포
+              </h4>
+              <div className={`${isMobile ? 'h-[200px]' : 'h-[250px]'} flex justify-center`}>
+                <div className="w-full max-w-[300px]">
+                  <Doughnut data={chartData.doughnutData} options={doughnutOptions} />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'all-charts':
+      default:
+        return (
+          <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
+            <div className="bg-background-main border border-border-light rounded-lg p-4">
+              <h4 className={`
+                ${isMobile ? 'text-sm' : 'text-base'} 
+                font-semibold text-text-primary mb-4 text-center
+              `}>
+                시간대별 주문량 추이
+              </h4>
+              <div className={`${isMobile ? 'h-[200px]' : 'h-[250px]'}`}>
+                <Line data={chartData.lineData} options={chartOptions} />
+              </div>
+            </div>
+
+            <div className="bg-background-main border border-border-light rounded-lg p-4">
+              <h4 className={`
+                ${isMobile ? 'text-sm' : 'text-base'} 
+                font-semibold text-text-primary mb-4 text-center
+              `}>
+                시간대별 평균 배달시간
+              </h4>
+              <div className={`${isMobile ? 'h-[200px]' : 'h-[250px]'}`}>
+                <Bar data={chartData.barData} options={chartOptions} />
+              </div>
+            </div>
+
+            <div className={`bg-background-main border border-border-light rounded-lg p-4 ${isMobile ? '' : 'col-span-2'}`}>
+              <h4 className={`
+                ${isMobile ? 'text-sm' : 'text-base'} 
+                font-semibold text-text-primary mb-4 text-center
+              `}>
+                주문 상태별 분포
+              </h4>
+              <div className={`${isMobile ? 'h-[200px]' : 'h-[300px]'} flex justify-center`}>
+                <div className="w-full max-w-[400px]">
+                  <Doughnut data={chartData.doughnutData} options={doughnutOptions} />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+    }
+  };
+
   return (
     <div className={`
       flex-1 
@@ -291,48 +450,7 @@ const Graph = ({ data }: { data: { [key: string]: unknown } }) => {
         </div>
         
         {/* 차트 그리드 */}
-        <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
-          {/* 라인 차트 - 시간대별 주문량 */}
-          <div className="bg-background-main border border-border-light rounded-lg p-4">
-            <h4 className={`
-              ${isMobile ? 'text-sm' : 'text-base'} 
-              font-semibold text-text-primary mb-4 text-center
-            `}>
-              시간대별 주문량 추이
-            </h4>
-            <div className={`${isMobile ? 'h-[200px]' : 'h-[250px]'}`}>
-              <Line data={chartData.lineData} options={chartOptions} />
-            </div>
-          </div>
-
-          {/* 바 차트 - 평균 배달시간 */}
-          <div className="bg-background-main border border-border-light rounded-lg p-4">
-            <h4 className={`
-              ${isMobile ? 'text-sm' : 'text-base'} 
-              font-semibold text-text-primary mb-4 text-center
-            `}>
-              시간대별 평균 배달시간
-            </h4>
-            <div className={`${isMobile ? 'h-[200px]' : 'h-[250px]'}`}>
-              <Bar data={chartData.barData} options={chartOptions} />
-            </div>
-          </div>
-
-          {/* 도넛 차트 - 주문 상태 분포 */}
-          <div className={`bg-background-main border border-border-light rounded-lg p-4 ${isMobile ? '' : 'col-span-2'}`}>
-            <h4 className={`
-              ${isMobile ? 'text-sm' : 'text-base'} 
-              font-semibold text-text-primary mb-4 text-center
-            `}>
-              주문 상태별 분포
-            </h4>
-            <div className={`${isMobile ? 'h-[200px]' : 'h-[300px]'} flex justify-center`}>
-              <div className="w-full max-w-[400px]">
-                <Doughnut data={chartData.doughnutData} options={doughnutOptions} />
-              </div>
-            </div>
-          </div>
-        </div>
+        {renderCharts()}
       </div>
 
       {/* 데이터 테이블 */}

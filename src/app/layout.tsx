@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import GNB from "@/components/GNB";
-import Dashboard from "@/components/Dashboard";
 import FloatingChatbot from "@/components/FloatingChatbot";
 import Footer from "@/components/Footer";
 
@@ -32,7 +31,7 @@ export default function RootLayout({
         <div className="h-screen overflow-auto">
           <GNB />
           <div className="pt-15 pb-8 h-full">
-            <Dashboard />
+            {children}
           </div>
           <FloatingChatbot />
           <Footer />
