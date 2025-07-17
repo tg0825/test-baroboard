@@ -1,6 +1,31 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+} from 'chart.js';
+import { Line, Bar, Doughnut } from 'react-chartjs-2';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement
+);
 
 const Graph = ({ data }: { data: { [key: string]: unknown } }) => {
   const [isMobile, setIsMobile] = useState(false);
@@ -24,6 +49,116 @@ const Graph = ({ data }: { data: { [key: string]: unknown } }) => {
       case '대시보드': return 'bg-warning-main text-warning-main border-border-light bg-warning-pale';
       default: return 'bg-secondary-main text-secondary-main border-border-light bg-secondary-pale';
     }
+  };
+
+  // 차트 데이터 생성
+  const generateChartData = () => {
+    const hours = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
+    const orderCounts = hours.map(() => Math.floor(Math.random() * 50 + 10));
+    const deliveryTimes = hours.map(() => Math.floor(Math.random() * 20 + 15));
+
+    return {
+      lineData: {
+        labels: hours,
+        datasets: [
+          {
+            label: '시간대별 주문 수',
+            data: orderCounts,
+            borderColor: '#fa5014',
+            backgroundColor: 'rgba(250, 80, 20, 0.1)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4,
+          },
+        ],
+      },
+      barData: {
+        labels: hours,
+        datasets: [
+          {
+            label: '평균 배달시간 (분)',
+            data: deliveryTimes,
+            backgroundColor: 'rgba(250, 80, 20, 0.6)',
+            borderColor: '#fa5014',
+            borderWidth: 1,
+          },
+        ],
+      },
+      doughnutData: {
+        labels: ['완료', '배달중', '준비중', '취소'],
+        datasets: [
+          {
+            data: [65, 20, 10, 5],
+            backgroundColor: [
+              '#28a745',
+              '#17a2b8',
+              '#ffc107',
+              '#6c757d',
+            ],
+            borderWidth: 2,
+            borderColor: '#ffffff',
+          },
+        ],
+      },
+    };
+  };
+
+  const chartData = generateChartData();
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top' as const,
+        labels: {
+          font: {
+            size: isMobile ? 10 : 12,
+          },
+        },
+      },
+      title: {
+        display: false,
+      },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: 'rgba(0, 0, 0, 0.1)',
+        },
+        ticks: {
+          font: {
+            size: isMobile ? 10 : 12,
+          },
+        },
+      },
+      x: {
+        grid: {
+          color: 'rgba(0, 0, 0, 0.1)',
+        },
+        ticks: {
+          font: {
+            size: isMobile ? 10 : 12,
+          },
+        },
+      },
+    },
+  };
+
+  const doughnutOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'right' as const,
+        labels: {
+          font: {
+            size: isMobile ? 10 : 12,
+          },
+        },
+      },
+    },
   };
 
   return (
@@ -141,6 +276,63 @@ const Graph = ({ data }: { data: { [key: string]: unknown } }) => {
         `}>
           {JSON.stringify(data, null, 2)}
         </pre>
+      </div>
+
+      {/* 차트 섹션 */}
+      <div className={`card ${isMobile ? 'p-5' : 'p-6'}`}>
+        <div className="flex items-center gap-2 mb-6">
+          <span className="text-xl">📈</span>
+          <h3 className={`
+            ${isMobile ? 'text-base' : 'text-lg'} 
+            m-0 text-text-primary font-semibold
+          `}>
+            데이터 시각화
+          </h3>
+        </div>
+        
+        {/* 차트 그리드 */}
+        <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
+          {/* 라인 차트 - 시간대별 주문량 */}
+          <div className="bg-background-main border border-border-light rounded-lg p-4">
+            <h4 className={`
+              ${isMobile ? 'text-sm' : 'text-base'} 
+              font-semibold text-text-primary mb-4 text-center
+            `}>
+              시간대별 주문량 추이
+            </h4>
+            <div className={`${isMobile ? 'h-[200px]' : 'h-[250px]'}`}>
+              <Line data={chartData.lineData} options={chartOptions} />
+            </div>
+          </div>
+
+          {/* 바 차트 - 평균 배달시간 */}
+          <div className="bg-background-main border border-border-light rounded-lg p-4">
+            <h4 className={`
+              ${isMobile ? 'text-sm' : 'text-base'} 
+              font-semibold text-text-primary mb-4 text-center
+            `}>
+              시간대별 평균 배달시간
+            </h4>
+            <div className={`${isMobile ? 'h-[200px]' : 'h-[250px]'}`}>
+              <Bar data={chartData.barData} options={chartOptions} />
+            </div>
+          </div>
+
+          {/* 도넛 차트 - 주문 상태 분포 */}
+          <div className={`bg-background-main border border-border-light rounded-lg p-4 ${isMobile ? '' : 'col-span-2'}`}>
+            <h4 className={`
+              ${isMobile ? 'text-sm' : 'text-base'} 
+              font-semibold text-text-primary mb-4 text-center
+            `}>
+              주문 상태별 분포
+            </h4>
+            <div className={`${isMobile ? 'h-[200px]' : 'h-[300px]'} flex justify-center`}>
+              <div className="w-full max-w-[400px]">
+                <Doughnut data={chartData.doughnutData} options={doughnutOptions} />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* 데이터 테이블 */}
