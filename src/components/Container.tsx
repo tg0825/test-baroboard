@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Graph from './Graph';
 
 interface ContainerProps {
@@ -28,21 +29,16 @@ const Container = ({ selectedData }: ContainerProps) => {
         {selectedData ? (
           <Graph data={selectedData} />
         ) : (
-          <div className={`
-            flex items-center justify-center h-full text-text-secondary
-            ${isMobile ? 'text-base' : 'text-lg'}
-            text-center p-5
-          `}>
-            <div className="card p-10 shadow-medium border border-border-light">
-              <div className="text-5xl mb-4 text-primary-main">
-                📊
-              </div>
-              <div className="text-text-primary font-semibold mb-2">
-                {isMobile ? '상단 메뉴를 눌러 쿼리를 선택하세요' : '좌측에서 쿼리를 선택하세요'}
-              </div>
-              <div className="text-text-muted text-sm">
-                분석하고 싶은 쿼리를 클릭하면 결과를 확인할 수 있습니다
-              </div>
+          <div className="flex items-center justify-center h-full">
+            <div className="flex items-center justify-center">
+              <Image 
+                src="/logo-bb.png" 
+                alt="Baro Board" 
+                width={isMobile ? 192 : 256}
+                height={isMobile ? 192 : 256}
+                className="object-contain opacity-80 hover:opacity-100 transition-opacity duration-300"
+                priority
+              />
             </div>
           </div>
         )}

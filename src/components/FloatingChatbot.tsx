@@ -53,7 +53,7 @@ const FloatingChatbot = () => {
         onClick={toggleChat}
         className={`
           fixed z-[1000]
-          ${isMobile ? 'bottom-4 right-4 w-14 h-14 text-xl' : 'bottom-5 right-5 w-15 h-15 text-2xl'}
+          ${isMobile ? 'bottom-8 right-4 w-14 h-14 text-xl' : 'bottom-12 right-5 w-15 h-15 text-2xl'}
           rounded-full bg-primary-main text-white border-none cursor-pointer
           shadow-button flex items-center justify-center
           transition-all duration-300 ease-in-out
@@ -70,8 +70,8 @@ const FloatingChatbot = () => {
           className={`
             fixed z-[999] bg-background-main shadow-strong overflow-hidden border border-border-light
             ${isMobile 
-              ? 'bottom-20 left-4 right-4 h-[calc(100vh-120px)] max-h-[80vh] rounded-2xl' 
-              : 'bottom-[90px] right-5 w-[400px] h-[600px] rounded-xl'
+              ? 'bottom-24 left-4 right-4 h-[calc(100vh-120px)] max-h-[80vh] rounded-2xl' 
+              : 'bottom-[110px] right-5 w-[400px] h-[600px] rounded-xl'
             }
           `}
         >
