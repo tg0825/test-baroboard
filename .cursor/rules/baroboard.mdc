@@ -60,6 +60,63 @@ alwaysApply: false
 ## 11. 프로젝트 정보
 - 팀 이름: AIniti4
 - 프로젝트 이름: Baro Board
+
+## 12. 쿼리 리스트 조회 페이지 응답값 형태
+```
+{
+  "count": 298,
+  "page": 1,
+  "page_size": 20,
+  "results": [
+    {
+      "id": 2835,
+      "latest_query_data_id": 264557,
+      "name": "배민, 요기요 매핑 비율",
+      "description": null,
+      "query": "WITH total_stores AS (\n  SELECT\n    COUNT(*) as total_count\n  FROM\n    t1_db_gorela_productiongorela.public_stores as stores\n),\nagency_groups AS (\n  SELECT\n    CASE\n      WHEN oas.orderAgencyId IN ('baemin_delivery', 'baemin_v2', 'baemin_one') THEN '배민계열'\n      WHEN oas.orderAgencyId IN ('yogiyo', 'yogi_delivery') THEN '요기요'\n    END as agency_group,\n    COUNT(DISTINCT oas.storeId) as store_count\n  FROM\n    t1_db_gorela_productiongorela.public_order_agency_stores oas\n  WHERE\n    oas.mappingStatus = 'DONE'\n  GROUP BY\n    CASE\n      WHEN oas.orderAgencyId IN ('baemin_delivery', 'baemin_v2', 'baemin_one') THEN '배민계열'\n      WHEN oas.orderAgencyId IN ('yogiyo', 'yogi_delivery') THEN '요기요'\n    END\n)\nSELECT\n  ag.agency_group,\n  ag.store_count,\n  ts.total_count,\n  ROUND(\n    (\n      CAST(ag.store_count AS DOUBLE) / CAST(ts.total_count AS DOUBLE)\n    ) * 100,\n    2\n  ) as percentage\nFROM\n  agency_groups ag\n  CROSS JOIN total_stores ts\nORDER BY\n  ag.store_count DESC;",
+      "query_hash": "1c79f5037198150042b4006c834d8dbb",
+      "schedule": null,
+      "api_key": "nRgGsnbRPJHbI2aWwrCmnfFD2vpmLB7lX515pgf7",
+      "is_archived": false,
+      "is_draft": false,
+      "updated_at": "2025-07-01T02:28:42.726Z",
+      "created_at": "2025-07-01T02:28:33.216Z",
+      "data_source_id": 28,
+      "options": {
+          "apply_auto_limit": true,
+          "parameters": []
+      },
+      "version": 1,
+      "tags": [],
+      "is_safe": true,
+      "user": {
+          "id": 52,
+          "name": "[B2300705]김동원",
+          "email": "tuna@barogo.com",
+          "profile_image_url": "https://www.gravatar.com/avatar/42dae09d297d7a60993146261859fd5e?s=40&d=identicon",
+          "groups": [
+              27
+          ],
+          "updated_at": "2025-07-01T04:06:25.613Z",
+          "created_at": "2023-08-29T07:28:10.544Z",
+          "disabled_at": null,
+          "is_disabled": false,
+          "active_at": "2025-07-01T04:05:59Z",
+          "is_invitation_pending": false,
+          "is_email_verified": true,
+          "auth_type": "password"
+      },
+      "last_modified_by_id": 52,
+      "retrieved_at": "2025-07-15T09:53:34.782Z",
+      "runtime": 2.6385819911956787,
+      "is_favorite": false
+    }
+  ]
+}
+```
+# 폰트
+* 최소 폰트 크기는 12px
+* 기본 폰트 크기는 14px
 ---
 
 > 본 규칙은 프로젝트 상황에 따라 변경될 수 있습니다. 변경 시 팀원과 공유 필수. 
