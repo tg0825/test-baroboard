@@ -1,122 +1,97 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import Sidebar from './Sidebar';
+import React, { useState } from 'react';
 import Container from './Container';
-import { db, analytics } from '../firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { logEvent } from 'firebase/analytics';
+import Sidebar from './Sidebar';
+import LNB from './LNB';
 
-interface DashboardProps {
-  initialQueryId?: number | null;
+interface ListItem {
+  id: string;
+  title: string;
+  description?: string;
+  status?: string;
+  type?: string;
 }
 
-const Dashboard = ({ initialQueryId }: DashboardProps) => {
-  const [selectedData, setSelectedData] = useState<{ [key: string]: unknown } | null>(null);
+interface ApiDataHook {
+  data: unknown;
+  loading: boolean;
+  error: string | null;
+  setMainPageData: (data: unknown) => void;
+  setLoading: (loading: boolean) => void;
+  setError: (error: string) => void;
+  resetData: () => void;
+  user: unknown;
+}
 
-  // Firebase에 쿼리 선택 정보 저장
-  const saveQuerySelection = async (data: { [key: string]: unknown }) => {
-    try {
-      await addDoc(collection(db, 'query_selections'), {
-        ...data,
-        selectedAt: serverTimestamp(),
-        sessionId: sessionStorage.getItem('sessionId') || 'anonymous'
-      });
-      console.log('쿼리 선택 정보가 Firebase에 저장되었습니다.');
-    } catch (error) {
-      console.error('Firebase 저장 중 오류 발생:', error);
-    }
-  };
+interface DashboardProps {
+  apiData: ApiDataHook;
+}
 
-  // Firebase Analytics 이벤트 추적
-  const trackQuerySelection = (data: { [key: string]: unknown }) => {
-    if (analytics) {
-      logEvent(analytics, 'query_selected', {
-        query_id: data.id,
-        query_name: data.query,
-        query_type: data.type
-      });
-      console.log('Analytics 이벤트가 추적되었습니다.');
-    }
-  };
+const Dashboard = ({ apiData }: DashboardProps) => {
+  const [selectedItem, setSelectedItem] = useState<ListItem | null>(null);
 
-  const handleQuerySelect = (data: { [key: string]: unknown }) => {
-    setSelectedData(data);
+  // API 데이터에서 리스트 추출 (n8n 응답 구조에 따라 조정)
+  const listItems: ListItem[] = React.useMemo(() => {
+    if (!apiData.data) return [];
     
-    // Firebase에 데이터 저장 및 Analytics 추적
-    saveQuerySelection(data);
-    trackQuerySelection(data);
+    try {
+      // n8n 응답이 { items: [...] } 형태인 경우
+      if (apiData.data && typeof apiData.data === 'object' && 'items' in apiData.data && Array.isArray((apiData.data as {items: unknown[]}).items)) {
+        return (apiData.data as {items: Record<string, unknown>[]}).items.map((item: Record<string, unknown>, index: number) => ({
+          id: item.id || `item-${index}`,
+          title: item.title || item.name || `Item ${index + 1}`,
+          description: item.description || item.summary,
+          status: item.status,
+          type: item.type || item.category,
+        }));
+      }
+      
+      // n8n 응답이 배열 형태인 경우
+      if (Array.isArray(apiData.data)) {
+        return (apiData.data as Record<string, unknown>[]).map((item: Record<string, unknown>, index: number) => ({
+          id: (item.id as string) || `item-${index}`,
+          title: (item.title as string) || (item.name as string) || `Item ${index + 1}`,
+          description: (item.description as string) || (item.summary as string),
+          status: item.status as string,
+          type: (item.type as string) || (item.category as string),
+        }));
+      }
+      
+      // n8n 응답이 단일 객체인 경우
+      return [{
+        id: 'api-response',
+        title: 'API 응답 데이터',
+        description: `데이터 수신됨: ${new Date().toLocaleTimeString()}`,
+        status: 'received',
+        type: 'data',
+      }];
+    } catch (error) {
+      console.error('리스트 데이터 파싱 오류:', error);
+      return [];
+    }
+  }, [apiData.data]);
+
+  const handleItemSelect = (item: ListItem) => {
+    setSelectedItem(item);
+    console.log('🎯 선택된 아이템:', item);
   };
-
-  // 세션 ID 생성 (한 번만)
-  useEffect(() => {
-    if (!sessionStorage.getItem('sessionId')) {
-      sessionStorage.setItem('sessionId', 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9));
-    }
-  }, []);
-
-  // 초기 쿼리 ID가 있을 때 자동으로 해당 쿼리를 선택
-  useEffect(() => {
-    if (initialQueryId && initialQueryId > 0 && initialQueryId <= 100) {
-      // 배달대행사 관련 쿼리 데이터 (Sidebar와 동일한 로직)
-      const deliveryQueries = [
-        "배달 기사별 일일 주문 완료율 분석",
-        "시간대별 배달 주문량 추이 리포트",
-        "음식점 카테고리별 주문 현황 대시보드",
-        "배달 지연 원인 분석 및 개선방안",
-        "고객 만족도 점수별 주문 분포",
-        "배달 거리별 평균 소요시간 분석",
-        "요일별 주문량 변화 트렌드",
-        "우천시 배달 성과 영향 분석",
-        "프로모션 이벤트 효과 측정 리포트",
-        "배달 기사 근무시간 최적화 분석",
-        "주문 취소율 감소 전략 리포트",
-        "신규 고객 유입 경로 분석",
-        "재주문률 향상 방안 연구",
-        "배달료 정책 변경 영향 분석",
-        "앱 사용자 행동 패턴 분석",
-        "주요 경쟁사 대비 배달시간 비교",
-        "지역별 배달 수요 예측 모델",
-        "배달 기사 교육 효과 측정",
-        "고객 리뷰 감정 분석 리포트",
-        "메뉴 인기도별 주문 패턴 분석",
-        "배달팁 금액별 주문 완료율",
-        "월별 매출 성장률 추이 분석",
-        "배달 앱 다운로드 수 증가율",
-        "고객 연령대별 주문 선호도",
-        "배달 포장 품질 만족도 조사",
-        "실시간 배달 현황 모니터링",
-        "주문 집중 시간대 배치 최적화",
-        "신메뉴 출시 효과 분석 리포트",
-        "배달 사고 발생률 감소 전략",
-        "고객 대기시간 단축 방안 연구"
-      ];
-
-      const queryIndex = (initialQueryId - 1) % deliveryQueries.length;
-      const queryNumber = Math.floor((initialQueryId - 1) / deliveryQueries.length) + 1;
-      
-      const queryName = queryNumber > 1 ? `${deliveryQueries[queryIndex]} (${queryNumber}차)` : deliveryQueries[queryIndex];
-      
-      const data = {
-        query: queryName,
-        id: initialQueryId,
-        type: (initialQueryId - 1) % 3 === 0 ? '분석' : (initialQueryId - 1) % 3 === 1 ? '보고서' : '대시보드',
-        description: `배달대행사 운영 최적화를 위한 데이터 분석 쿼리 ${initialQueryId}`,
-        result: Math.random() * 100,
-        timestamp: new Date().toISOString()
-      };
-      
-      setSelectedData(data);
-      // 초기 로드시에도 Firebase에 저장 및 Analytics 추적
-      saveQuerySelection(data);
-      trackQuerySelection(data);
-    }
-  }, [initialQueryId]);
 
   return (
-    <div className="flex h-full relative">
-      <Sidebar onQuerySelect={handleQuerySelect} />
-      <Container selectedData={selectedData} />
+    <div className="h-full flex">
+      {/* 좌측 리스트 (LNB) */}
+      <LNB 
+        items={listItems}
+        onItemSelect={handleItemSelect}
+        selectedItemId={selectedItem?.id}
+        isLoading={apiData.loading}
+      />
+      
+      {/* 중앙 컨테이너 */}
+      <Container selectedItem={selectedItem} apiError={apiData.error} />
+      
+      {/* 우측 사이드바 */}
+      <Sidebar onQuerySelect={() => {}} />
     </div>
   );
 };

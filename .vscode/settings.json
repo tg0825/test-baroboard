@@ -1,0 +1,10 @@
+{
+  "search.exclude": {
+    "**/.history": true
+  },
+  "files.exclude": {
+    "**/.history": true,
+    "**/.next": true,
+    "**/out": true
+  }
+}
