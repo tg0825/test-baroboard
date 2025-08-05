@@ -1,6 +1,6 @@
 // API 데이터 관리를 위한 커스텀 훅
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface ApiDataState<T> {

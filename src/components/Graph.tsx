@@ -51,19 +51,17 @@ const Graph = ({ data }: { data: { [key: string]: unknown } }) => {
     }
   };
 
-  // 차트 데이터 생성
+  // 차트 데이터 생성 - 실제 데이터로 변경 필요
   const generateChartData = () => {
-    const hours = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
-    const orderCounts = hours.map(() => Math.floor(Math.random() * 50 + 10));
-    const deliveryTimes = hours.map(() => Math.floor(Math.random() * 20 + 15));
-
+    // TODO: 실제 API 데이터를 기반으로 차트 데이터 생성
+    // 현재는 빈 데이터 구조만 제공
     return {
       lineData: {
-        labels: hours,
+        labels: [],
         datasets: [
           {
-            label: '시간대별 주문 수',
-            data: orderCounts,
+            label: '데이터 없음',
+            data: [],
             borderColor: '#fa5014',
             backgroundColor: 'rgba(250, 80, 20, 0.1)',
             borderWidth: 2,
@@ -73,11 +71,11 @@ const Graph = ({ data }: { data: { [key: string]: unknown } }) => {
         ],
       },
       barData: {
-        labels: hours,
+        labels: [],
         datasets: [
           {
-            label: '평균 배달시간 (분)',
-            data: deliveryTimes,
+            label: '데이터 없음',
+            data: [],
             backgroundColor: 'rgba(250, 80, 20, 0.6)',
             borderColor: '#fa5014',
             borderWidth: 1,
@@ -85,16 +83,11 @@ const Graph = ({ data }: { data: { [key: string]: unknown } }) => {
         ],
       },
       doughnutData: {
-        labels: ['완료', '배달중', '준비중', '취소'],
+        labels: [],
         datasets: [
           {
-            data: [65, 20, 10, 5],
-            backgroundColor: [
-              '#28a745',
-              '#17a2b8',
-              '#ffc107',
-              '#6c757d',
-            ],
+            data: [],
+            backgroundColor: [],
             borderWidth: 2,
             borderColor: '#ffffff',
           },
@@ -513,80 +506,26 @@ const Graph = ({ data }: { data: { [key: string]: unknown } }) => {
               </tr>
             </thead>
             <tbody>
-              {Array.from({ length: 15 }, (_, index) => {
-                const orderStatuses = ['완료', '배달중', '준비중', '취소'];
-                const restaurants = ['맥도날드', '버거킹', 'KFC', '피자헛', '도미노피자', '치킨플러스', '한솥도시락', '김밥천국'];
-                const drivers = ['김철수', '이영희', '박민수', '정수연', '최동혁', '임현정', '송지훈', '한미래'];
-                
-                return (
-                  <tr key={index} className={`
-                    ${index % 2 === 0 ? 'bg-background-main' : 'bg-secondary-pale'} 
-                    border-b border-border-light hover:bg-primary-pale transition-colors duration-200
-                  `}>
-                    <td className={`
-                      ${isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-3 text-sm'} 
-                      border-r border-border-light text-text-primary
-                    `}>
-                      {1000 + index + 1}
-                    </td>
-                    <td className={`
-                      ${isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-3 text-sm'} 
-                      border-r border-border-light text-text-primary font-mono
-                    `}>
-                      ORD-{(Math.random() * 100000).toFixed(0).padStart(5, '0')}
-                    </td>
-                    <td className={`
-                      ${isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-3 text-sm'} 
-                      border-r border-border-light text-text-primary
-                    `}>
-                      {drivers[index % drivers.length]}
-                    </td>
-                    <td className={`
-                      ${isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-3 text-sm'} 
-                      border-r border-border-light text-text-primary
-                    `}>
-                      {restaurants[index % restaurants.length]}
-                    </td>
-                    <td className={`
-                      ${isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-3 text-sm'} 
-                      border-r border-border-light text-text-primary font-mono text-right
-                    `}>
-                      {(Math.random() * 50000 + 10000).toLocaleString()}원
-                    </td>
-                    <td className={`
-                      ${isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-3 text-sm'} 
-                      border-r border-border-light text-text-primary
-                    `}>
-                      {Math.floor(Math.random() * 30 + 15)}분
-                    </td>
-                    <td className={`
-                      ${isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-3 text-sm'} 
-                      text-text-primary
-                    `}>
-                      <span className={`
-                        px-2 py-1 rounded-full text-xs font-medium
-                        ${orderStatuses[index % orderStatuses.length] === '완료' ? 'bg-success-pale text-success-main' :
-                          orderStatuses[index % orderStatuses.length] === '배달중' ? 'bg-info-pale text-info-main' :
-                          orderStatuses[index % orderStatuses.length] === '준비중' ? 'bg-warning-pale text-warning-main' :
-                          'bg-secondary-pale text-secondary-main'}
-                      `}>
-                        {orderStatuses[index % orderStatuses.length]}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
+              {/* TODO: 실제 API 데이터로 테이블 행 생성 */}
+              <tr>
+                <td colSpan={7} className={`
+                  ${isMobile ? 'px-3 py-8 text-xs' : 'px-4 py-12 text-sm'} 
+                  text-center text-text-muted
+                `}>
+                  표시할 데이터가 없습니다
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
         
-        {/* 테이블 푸터 - 페이지네이션 힌트 */}
+        {/* 테이블 푸터 - 페이지네이션 */}
         <div className={`
           mt-4 pt-4 border-t border-border-light flex justify-between items-center
           ${isMobile ? 'text-xs' : 'text-sm'} text-text-secondary
         `}>
-          <span>총 {Math.floor(Math.random() * 1000 + 500)}건의 결과</span>
-          <span>페이지 1 / {Math.floor(Math.random() * 20 + 5)}</span>
+          <span>총 0건의 결과</span>
+          <span>페이지 1 / 1</span>
         </div>
       </div>
     </div>

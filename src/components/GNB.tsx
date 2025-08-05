@@ -29,10 +29,10 @@ const GNB = () => {
         </div>
       )}
       
-      <nav className={`fixed ${user?.session ? 'top-6' : 'top-0'} left-0 right-0 h-15 bg-primary-main border-b border-primary-dark flex items-center justify-between px-4 md:px-6 z-[1002] shadow-soft`}>
+      <nav className={`fixed ${user?.session ? 'top-6' : 'top-0'} left-0 right-0 h-15 bg-primary-main border-b border-primary-dark flex items-center justify-between px-4 md:px-6 z-[1002]`}>
         {/* 로고 */}
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-primary-main font-bold text-base shadow-button">
+          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-primary-main font-bold text-base">
             B
           </div>
           <h1 className={`${isMobile ? 'text-lg' : 'text-xl'} font-bold text-white m-0`}>

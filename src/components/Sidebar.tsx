@@ -1,22 +1,34 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+
+interface QueryItem {
+  id: number;
+  name: string;
+  description: string | null;
+  type: string;
+  user: string;
+  updatedAt: string;
+  runtime: string;
+  isFavorite: boolean;
+  isDraft: boolean;
+  isArchived: boolean;
+}
 
 interface SidebarProps {
   onQuerySelect: (data: { [key: string]: unknown }) => void;
   apiData?: {
-    data: any;
+    data: unknown;
     loading: boolean;
     error: string | null;
   };
+  onPageChange: (page: number) => void;
 }
 
-const Sidebar = ({ onQuerySelect, apiData }: SidebarProps) => {
+const Sidebar = ({ onQuerySelect, apiData, onPageChange }: SidebarProps) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const router = useRouter();
 
   // 화면 크기 감지
   useEffect(() => {
@@ -33,33 +45,33 @@ const Sidebar = ({ onQuerySelect, apiData }: SidebarProps) => {
 
 
   // API 데이터에서 쿼리 리스트 생성 (baroboard.mdc 응답 형태 기준)
-  const queryList = React.useMemo(() => {
+  const queryList = React.useMemo((): QueryItem[] => {
     // API 데이터가 results 배열을 포함하는 객체인 경우 (표준 응답 형태)
     if (apiData?.data && typeof apiData.data === 'object' && 'results' in apiData.data) {
-      const data = apiData.data as any;
+      const data = apiData.data as Record<string, unknown>;
       if (data.results && Array.isArray(data.results)) {
-        return data.results.map((item: any) => ({
-          id: item.id,
-          name: item.name || `쿼리 ${item.id}`,
-          description: item.description || null,
+        return data.results.map((item: Record<string, unknown>) => ({
+          id: item.id as number,
+          name: (item.name as string) || `쿼리 ${item.id}`,
+          description: (item.description as string) || null,
           type: item.is_favorite ? '즐겨찾기' : item.is_draft ? '임시저장' : '분석',
-          user: item.user?.name || '알 수 없음',
-          updatedAt: item.updated_at ? new Date(item.updated_at).toLocaleDateString() : '',
-          runtime: item.runtime ? `${item.runtime.toFixed(2)}초` : '',
-          isFavorite: item.is_favorite,
-          isDraft: item.is_draft,
-          isArchived: item.is_archived
+          user: ((item.user as Record<string, unknown>)?.name as string) || '알 수 없음',
+          updatedAt: item.updated_at ? new Date(item.updated_at as string).toLocaleDateString() : '',
+          runtime: item.runtime ? `${(item.runtime as number).toFixed(2)}초` : '',
+          isFavorite: Boolean(item.is_favorite),
+          isDraft: Boolean(item.is_draft),
+          isArchived: Boolean(item.is_archived)
         }));
       }
     }
     
     // 기존 호환성을 위한 fallback 처리
     if (apiData?.data && Array.isArray(apiData.data)) {
-      return apiData.data.map((item: any, index: number) => ({
-        id: item.id || index + 1,
-        name: item.name || item.title || `쿼리 ${index + 1}`,
-        description: item.description || item.summary || `API에서 받은 쿼리 ${index + 1}`,
-        type: item.type || item.category || '분석',
+      return apiData.data.map((item: Record<string, unknown>, index: number) => ({
+        id: (item.id as number) || index + 1,
+        name: (item.name as string) || (item.title as string) || `쿼리 ${index + 1}`,
+        description: (item.description as string) || (item.summary as string) || `API에서 받은 쿼리 ${index + 1}`,
+        type: (item.type as string) || (item.category as string) || '분석',
         user: '알 수 없음',
         updatedAt: '',
         runtime: '',
@@ -76,38 +88,38 @@ const Sidebar = ({ onQuerySelect, apiData }: SidebarProps) => {
   // 페이지네이션 정보 추출
   const paginationInfo = React.useMemo(() => {
     if (apiData?.data && typeof apiData.data === 'object' && 'count' in apiData.data) {
-      const data = apiData.data as any;
+      const data = apiData.data as Record<string, unknown>;
       return {
-        count: data.count || 0,
-        page: data.page || 1,
-        pageSize: data.page_size || 20
+        count: (data.count as number) || 0,
+        page: (data.page as number) || 1,
+        pageSize: (data.page_size as number) || 20
       };
     }
     return null;
   }, [apiData?.data]);
 
   // 검색어로 쿼리 리스트 필터링
-  const filteredQueryList = queryList.filter(query =>
+  const filteredQueryList = queryList.filter((query: QueryItem) =>
     query.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    query.description.toLowerCase().includes(searchQuery.toLowerCase())
+    (query.description && query.description.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const handleQueryClick = (query: { id: number; name: string; description: string; type: string }) => {
+  const handleQueryClick = async (query: QueryItem) => {
+    console.log(`🔍 쿼리 ID ${query.id} 클릭됨`);
+    
+    // 기본 쿼리 정보를 상위 컴포넌트에 전달
     const data = { 
       query: query.name, 
       id: query.id,
       type: query.type,
       description: query.description,
-      result: Math.random() * 100,
       timestamp: new Date().toISOString()
     };
-    
-    // URL 변경
-    router.push(`/query/${query.id}`);
     
     // 상위 컴포넌트에 데이터 전달
     onQuerySelect(data);
     
+    // 모바일에서 메뉴 닫기
     if (isMobile) {
       setIsMobileMenuOpen(false);
     }
@@ -117,16 +129,7 @@ const Sidebar = ({ onQuerySelect, apiData }: SidebarProps) => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
-  const getTypeStyles = (type: string) => {
-    switch (type) {
-      case '즐겨찾기': return 'border-yellow-500 text-yellow-700 bg-yellow-500';
-      case '임시저장': return 'border-orange-500 text-orange-700 bg-orange-500';
-      case '분석': return 'border-primary-main text-primary-main bg-primary-main';
-      case '보고서': return 'border-success-main text-success-main bg-success-main';
-      case '대시보드': return 'border-warning-main text-warning-main bg-warning-main';
-      default: return 'border-secondary-main text-secondary-main bg-secondary-main';
-    }
-  };
+
 
   return (
     <>
@@ -151,8 +154,8 @@ const Sidebar = ({ onQuerySelect, apiData }: SidebarProps) => {
       {/* 사이드바 */}
       <div 
         className={`
-          ${isMobile ? 'w-[280px]' : 'w-[30%]'} 
-          bg-background-soft p-4 overflow-y-auto
+          ${isMobile ? 'w-[280px]' : 'w-[400px]'} 
+          bg-background-soft p-4 overflow-y-auto flex-shrink-0
           ${isMobile ? 'fixed' : 'relative'}
           ${isMobile ? 'top-15' : 'top-0'}
           ${isMobile && !isMobileMenuOpen ? '-left-[280px]' : 'left-0'}
@@ -258,7 +261,7 @@ const Sidebar = ({ onQuerySelect, apiData }: SidebarProps) => {
               </div>
             </li>
           ) : (
-            filteredQueryList.map((query) => {
+            filteredQueryList.map((query: QueryItem) => {
               return (
                 <li 
                   key={query.id}
@@ -343,7 +346,7 @@ const Sidebar = ({ onQuerySelect, apiData }: SidebarProps) => {
                   {/* 첫 페이지로 이동 */}
                   {currentPage > 1 && (
                     <button
-                      onClick={() => {/* TODO: 첫 페이지로 이동 */}}
+                      onClick={() => onPageChange(1)}
                       className={`
                         w-8 h-8 rounded text-xs font-medium transition-all
                         bg-gray-100 text-gray-600 hover:bg-gray-200
@@ -356,7 +359,7 @@ const Sidebar = ({ onQuerySelect, apiData }: SidebarProps) => {
                   {/* 이전 페이지 */}
                   {currentPage > 1 && (
                     <button
-                      onClick={() => {/* TODO: 이전 페이지 */}}
+                      onClick={() => onPageChange(currentPage - 1)}
                       className={`
                         w-8 h-8 rounded text-xs font-medium transition-all
                         bg-gray-100 text-gray-600 hover:bg-gray-200
@@ -370,7 +373,7 @@ const Sidebar = ({ onQuerySelect, apiData }: SidebarProps) => {
                   {startPage > 1 && (
                     <>
                       <button
-                        onClick={() => {/* TODO: 1페이지로 이동 */}}
+                        onClick={() => onPageChange(1)}
                         className={`
                           w-8 h-8 rounded text-xs font-medium transition-all
                           bg-gray-100 text-gray-600 hover:bg-gray-200
@@ -388,7 +391,7 @@ const Sidebar = ({ onQuerySelect, apiData }: SidebarProps) => {
                   {pageNumbers.map((pageNum) => (
                     <button
                       key={pageNum}
-                      onClick={() => {/* TODO: 해당 페이지로 이동 */}}
+                      onClick={() => onPageChange(pageNum)}
                       className={`
                         w-8 h-8 rounded text-xs font-medium transition-all
                         ${pageNum === currentPage
@@ -408,7 +411,7 @@ const Sidebar = ({ onQuerySelect, apiData }: SidebarProps) => {
                         <span className="text-gray-400 text-xs">...</span>
                       )}
                       <button
-                        onClick={() => {/* TODO: 마지막 페이지로 이동 */}}
+                        onClick={() => onPageChange(totalPages)}
                         className={`
                           w-8 h-8 rounded text-xs font-medium transition-all
                           bg-gray-100 text-gray-600 hover:bg-gray-200
@@ -422,7 +425,7 @@ const Sidebar = ({ onQuerySelect, apiData }: SidebarProps) => {
                   {/* 다음 페이지 */}
                   {currentPage < totalPages && (
                     <button
-                      onClick={() => {/* TODO: 다음 페이지 */}}
+                      onClick={() => onPageChange(currentPage + 1)}
                       className={`
                         w-8 h-8 rounded text-xs font-medium transition-all
                         bg-gray-100 text-gray-600 hover:bg-gray-200
@@ -435,7 +438,7 @@ const Sidebar = ({ onQuerySelect, apiData }: SidebarProps) => {
                   {/* 마지막 페이지로 이동 */}
                   {currentPage < totalPages && (
                     <button
-                      onClick={() => {/* TODO: 마지막 페이지로 이동 */}}
+                      onClick={() => onPageChange(totalPages)}
                       className={`
                         w-8 h-8 rounded text-xs font-medium transition-all
                         bg-gray-100 text-gray-600 hover:bg-gray-200
