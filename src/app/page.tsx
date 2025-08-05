@@ -84,12 +84,13 @@ export default function Home() {
       setHasInitialized(true); // 즉시 플래그 설정하여 중복 요청 방지
       setIsInitializing(false);
       
-      // 첫 페이지 데이터 로딩
+      // 첫 페이지 데이터 로딩 (재시도 방지를 위해 한 번만 호출)
       await fetchPageData(1);
     };
 
     initializeMainPage();
-  }, [user, isLoading, hasInitialized, fetchPageData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, isLoading, hasInitialized]); // fetchPageData 의존성 제거로 API 재시도 방지
 
   if (isLoading || isInitializing) {
     return (

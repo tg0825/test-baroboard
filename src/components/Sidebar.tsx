@@ -29,6 +29,8 @@ const Sidebar = ({ onQuerySelect, apiData, onPageChange }: SidebarProps) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [loadingPage, setLoadingPage] = useState<number | null>(null); // 로딩 중인 페이지
+  const [localCurrentPage, setLocalCurrentPage] = useState<number | null>(null); // 로컬 현재 페이지
 
   // 화면 크기 감지
   useEffect(() => {
@@ -98,6 +100,14 @@ const Sidebar = ({ onQuerySelect, apiData, onPageChange }: SidebarProps) => {
     return null;
   }, [apiData?.data]);
 
+  // API 데이터가 변경되면 로딩 상태 리셋
+  useEffect(() => {
+    if (paginationInfo) {
+      setLoadingPage(null);
+      setLocalCurrentPage(paginationInfo.page);
+    }
+  }, [paginationInfo]);
+
   // 검색어로 쿼리 리스트 필터링
   const filteredQueryList = queryList.filter((query: QueryItem) =>
     query.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -112,7 +122,7 @@ const Sidebar = ({ onQuerySelect, apiData, onPageChange }: SidebarProps) => {
       query: query.name, 
       id: query.id,
       type: query.type,
-      description: query.description,
+      description: query.description || '', // null인 경우 빈 문자열로 처리
       timestamp: new Date().toISOString()
     };
     
@@ -127,6 +137,13 @@ const Sidebar = ({ onQuerySelect, apiData, onPageChange }: SidebarProps) => {
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  // 페이지 변경 핸들러 (즉시 시각적 피드백 제공)
+  const handlePageChange = (page: number) => {
+    setLoadingPage(page); // 로딩 상태 설정
+    setLocalCurrentPage(page); // 즉시 UI 업데이트
+    onPageChange(page); // 실제 API 호출
   };
 
 
@@ -154,11 +171,11 @@ const Sidebar = ({ onQuerySelect, apiData, onPageChange }: SidebarProps) => {
       {/* 사이드바 */}
       <div 
         className={`
-          ${isMobile ? 'w-[280px]' : 'w-[400px]'} 
+          ${isMobile ? 'w-[300px] min-w-[300px]' : 'w-[35%] min-w-[300px]'} 
           bg-background-soft p-4 overflow-y-auto flex-shrink-0
           ${isMobile ? 'fixed' : 'relative'}
           ${isMobile ? 'top-15' : 'top-0'}
-          ${isMobile && !isMobileMenuOpen ? '-left-[280px]' : 'left-0'}
+          ${isMobile && !isMobileMenuOpen ? '-left-[300px]' : 'left-0'}
           ${isMobile ? 'h-[calc(100vh-92px)]' : 'h-full'}
           z-[1000] transition-all duration-300 ease-in-out
           ${isMobile ? 'shadow-medium' : ''}
@@ -178,7 +195,12 @@ const Sidebar = ({ onQuerySelect, apiData, onPageChange }: SidebarProps) => {
               ${isMobile ? 'text-xs' : 'text-sm'} 
               text-text-muted
             `}>
-              총 {paginationInfo.count}개 • 페이지 {paginationInfo.page} • {paginationInfo.pageSize}개씩 표시
+              총 {paginationInfo.count}개 • 페이지 {localCurrentPage || paginationInfo.page} • {paginationInfo.pageSize}개씩 표시
+              {loadingPage && (
+                <span className="ml-2 text-primary-main">
+                  로딩 중...
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -323,7 +345,7 @@ const Sidebar = ({ onQuerySelect, apiData, onPageChange }: SidebarProps) => {
         {paginationInfo && filteredQueryList.length > 0 && (
           <div className="mt-4 pt-4 border-t border-border-light">
             {(() => {
-              const currentPage = paginationInfo.page;
+              const currentPage = localCurrentPage || paginationInfo.page;
               const totalPages = Math.ceil(paginationInfo.count / paginationInfo.pageSize);
               const maxVisiblePages = isMobile ? 5 : 7;
               
@@ -346,10 +368,14 @@ const Sidebar = ({ onQuerySelect, apiData, onPageChange }: SidebarProps) => {
                   {/* 첫 페이지로 이동 */}
                   {currentPage > 1 && (
                     <button
-                      onClick={() => onPageChange(1)}
+                      onClick={() => handlePageChange(1)}
+                      disabled={loadingPage === 1}
                       className={`
                         w-8 h-8 rounded text-xs font-medium transition-all
-                        bg-gray-100 text-gray-600 hover:bg-gray-200
+                        ${loadingPage === 1 
+                          ? 'bg-primary-pale text-primary-main cursor-not-allowed' 
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300'
+                        }
                       `}
                     >
                       «
@@ -359,10 +385,14 @@ const Sidebar = ({ onQuerySelect, apiData, onPageChange }: SidebarProps) => {
                   {/* 이전 페이지 */}
                   {currentPage > 1 && (
                     <button
-                      onClick={() => onPageChange(currentPage - 1)}
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={loadingPage === currentPage - 1}
                       className={`
                         w-8 h-8 rounded text-xs font-medium transition-all
-                        bg-gray-100 text-gray-600 hover:bg-gray-200
+                        ${loadingPage === currentPage - 1 
+                          ? 'bg-primary-pale text-primary-main cursor-not-allowed' 
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300'
+                        }
                       `}
                     >
                       ‹
@@ -373,10 +403,14 @@ const Sidebar = ({ onQuerySelect, apiData, onPageChange }: SidebarProps) => {
                   {startPage > 1 && (
                     <>
                       <button
-                        onClick={() => onPageChange(1)}
+                        onClick={() => handlePageChange(1)}
+                        disabled={loadingPage === 1}
                         className={`
                           w-8 h-8 rounded text-xs font-medium transition-all
-                          bg-gray-100 text-gray-600 hover:bg-gray-200
+                          ${loadingPage === 1 
+                            ? 'bg-primary-pale text-primary-main cursor-not-allowed' 
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300'
+                          }
                         `}
                       >
                         1
@@ -391,12 +425,15 @@ const Sidebar = ({ onQuerySelect, apiData, onPageChange }: SidebarProps) => {
                   {pageNumbers.map((pageNum) => (
                     <button
                       key={pageNum}
-                      onClick={() => onPageChange(pageNum)}
+                      onClick={() => handlePageChange(pageNum)}
+                      disabled={loadingPage === pageNum}
                       className={`
                         w-8 h-8 rounded text-xs font-medium transition-all
                         ${pageNum === currentPage
-                          ? 'bg-primary-main text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          ? 'bg-primary-main text-white shadow-md'
+                          : loadingPage === pageNum
+                          ? 'bg-primary-pale text-primary-main cursor-not-allowed'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300'
                         }
                       `}
                     >
@@ -411,10 +448,14 @@ const Sidebar = ({ onQuerySelect, apiData, onPageChange }: SidebarProps) => {
                         <span className="text-gray-400 text-xs">...</span>
                       )}
                       <button
-                        onClick={() => onPageChange(totalPages)}
+                        onClick={() => handlePageChange(totalPages)}
+                        disabled={loadingPage === totalPages}
                         className={`
                           w-8 h-8 rounded text-xs font-medium transition-all
-                          bg-gray-100 text-gray-600 hover:bg-gray-200
+                          ${loadingPage === totalPages 
+                            ? 'bg-primary-pale text-primary-main cursor-not-allowed' 
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300'
+                          }
                         `}
                       >
                         {totalPages}
@@ -425,10 +466,14 @@ const Sidebar = ({ onQuerySelect, apiData, onPageChange }: SidebarProps) => {
                   {/* 다음 페이지 */}
                   {currentPage < totalPages && (
                     <button
-                      onClick={() => onPageChange(currentPage + 1)}
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={loadingPage === currentPage + 1}
                       className={`
                         w-8 h-8 rounded text-xs font-medium transition-all
-                        bg-gray-100 text-gray-600 hover:bg-gray-200
+                        ${loadingPage === currentPage + 1 
+                          ? 'bg-primary-pale text-primary-main cursor-not-allowed' 
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300'
+                        }
                       `}
                     >
                       ›
@@ -438,10 +483,14 @@ const Sidebar = ({ onQuerySelect, apiData, onPageChange }: SidebarProps) => {
                   {/* 마지막 페이지로 이동 */}
                   {currentPage < totalPages && (
                     <button
-                      onClick={() => onPageChange(totalPages)}
+                      onClick={() => handlePageChange(totalPages)}
+                      disabled={loadingPage === totalPages}
                       className={`
                         w-8 h-8 rounded text-xs font-medium transition-all
-                        bg-gray-100 text-gray-600 hover:bg-gray-200
+                        ${loadingPage === totalPages 
+                          ? 'bg-primary-pale text-primary-main cursor-not-allowed' 
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300'
+                        }
                       `}
                     >
                       »
@@ -457,7 +506,12 @@ const Sidebar = ({ onQuerySelect, apiData, onPageChange }: SidebarProps) => {
               ${isMobile ? 'text-xs' : 'text-sm'} 
               text-text-muted
             `}>
-              총 {paginationInfo.count}개 중 {((paginationInfo.page - 1) * paginationInfo.pageSize) + 1}-{Math.min(paginationInfo.page * paginationInfo.pageSize, paginationInfo.count)}번째 표시
+              총 {paginationInfo.count}개 중 {(((localCurrentPage || paginationInfo.page) - 1) * paginationInfo.pageSize) + 1}-{Math.min((localCurrentPage || paginationInfo.page) * paginationInfo.pageSize, paginationInfo.count)}번째 표시
+              {loadingPage && (
+                <div className="mt-1 text-primary-main">
+                  <span className="inline-block animate-spin">⟳</span> 페이지 {loadingPage} 로딩 중...
+                </div>
+              )}
             </div>
           </div>
         )}

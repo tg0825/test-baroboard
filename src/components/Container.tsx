@@ -192,7 +192,8 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
     if (selectedQuery) {
       fetchQueryData(selectedQuery);
     }
-  }, [selectedQuery, fetchQueryData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedQuery]); // fetchQueryData 의존성 제거로 무한 루프 방지
 
   return (
     <div className="flex-1 flex flex-col h-full mt-16 min-w-0 overflow-hidden relative">
