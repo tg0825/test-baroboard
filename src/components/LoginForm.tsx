@@ -72,7 +72,7 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
 
         if (response.ok) {
           const result = await response.json();
-          console.log('로그인 응답:', result);
+
           
           // n8n 응답에서 받은 데이터 처리
           const userEmail = result.email || email;
@@ -82,7 +82,7 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
           // API 키를 로컬스토리지에 저장
           if (apiKey) {
             localStorage.setItem('baroboard_api_key', apiKey);
-            console.log('API 키가 로컬스토리지에 저장되었습니다.');
+
           }
           
           // 전역 상태로 로그인 처리 (session 포함)
@@ -90,12 +90,12 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
           router.push('/');
         } else {
           const errorData = await response.text();
-          console.error('로그인 실패:', errorData);
+
           setError('이메일 또는 비밀번호가 올바르지 않습니다.');
         }
       }
     } catch (err) {
-      console.error('로그인 오류:', err);
+
       setError('로그인 중 오류가 발생했습니다. 네트워크 연결을 확인해주세요.');
     } finally {
       setIsLoading(false);

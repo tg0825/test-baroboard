@@ -1,153 +1,522 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-interface ListItem {
-  id: string;
-  title: string;
-  description?: string;
-  status?: string;
-  type?: string;
+interface QueryItem {
+  id: number;
+  name: string;
+  description: string | null;
+  type: string;
+  user: string;
+  updatedAt: string;
+  runtime: string;
+  isFavorite: boolean;
+  isDraft: boolean;
+  isArchived: boolean;
 }
 
 interface LNBProps {
-  items: ListItem[];
-  onItemSelect?: (item: ListItem) => void;
-  selectedItemId?: string;
-  isLoading?: boolean;
+  onQuerySelect: (data: { [key: string]: unknown }) => void;
+  apiData?: {
+    data: unknown;
+    loading: boolean;
+    error: string | null;
+  };
+  onPageChange: (page: number) => void;
 }
 
-export default function LNB({ items, onItemSelect, selectedItemId, isLoading = false }: LNBProps) {
-  const [searchTerm, setSearchTerm] = useState('');
+const LNB = ({ onQuerySelect, apiData, onPageChange }: LNBProps) => {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loadingPage, setLoadingPage] = useState<number | null>(null); // 로딩 중인 페이지
+  const [localCurrentPage, setLocalCurrentPage] = useState<number | null>(null); // 로컬 현재 페이지
 
-  // 검색 필터링
-  const filteredItems = items.filter(item =>
-    item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()))
+  // 화면 크기 감지
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+
+
+  // API 데이터에서 쿼리 리스트 생성 (baroboard.mdc 응답 형태 기준)
+const queryList = React.useMemo((): QueryItem[] => {
+    // API 데이터가 results 배열을 포함하는 객체인 경우 (표준 응답 형태)
+    if (apiData?.data && typeof apiData.data === 'object' && 'results' in apiData.data) {
+      const data = apiData.data as Record<string, unknown>;
+      const results = data.results as Array<Record<string, unknown>>;
+      
+      return results.map((item) => ({
+        id: (item.id as number) || 0,
+        name: (item.name as string) || '제목 없음',
+        description: (item.description as string) || null,
+        type: 'Query',
+        user: (item.user as Record<string, unknown>)?.name as string || '알 수 없는 사용자',
+        updatedAt: (item.updated_at as string) || '',
+        runtime: ((item.runtime as number) || 0).toFixed(2) + 's',
+        isFavorite: (item.is_favorite as boolean) || false,
+        isDraft: (item.is_draft as boolean) || false,
+        isArchived: (item.is_archived as boolean) || false,
+      }));
+    }
+
+    // API 데이터가 배열인 경우 (레거시 형태)
+    if (apiData?.data && Array.isArray(apiData.data)) {
+      return apiData.data.map((item: Record<string, unknown>) => ({
+        id: (item.id as number) || 0,
+        name: (item.name as string) || '제목 없음',
+        description: (item.description as string) || null,
+        type: 'Query',
+        user: (item.user as string) || '알 수 없는 사용자',
+        updatedAt: (item.updatedAt as string) || '',
+        runtime: ((item.runtime as number) || 0).toFixed(2) + 's',
+        isFavorite: (item.isFavorite as boolean) || false,
+        isDraft: (item.isDraft as boolean) || false,
+        isArchived: (item.isArchived as boolean) || false,
+      }));
+    }
+
+    return [];
+  }, [apiData?.data]);
+
+  // 페이지네이션 정보 추출
+  const paginationInfo = React.useMemo(() => {
+    if (apiData?.data && typeof apiData.data === 'object' && 'count' in apiData.data) {
+      const data = apiData.data as Record<string, unknown>;
+      return {
+        count: (data.count as number) || 0,
+        page: (data.page as number) || 1,
+        pageSize: (data.page_size as number) || 20
+      };
+    }
+    return null;
+  }, [apiData?.data]);
+
+  // API 데이터가 변경되면 로딩 상태 리셋
+  useEffect(() => {
+    if (paginationInfo) {
+      setLoadingPage(null);
+      setLocalCurrentPage(paginationInfo.page);
+    }
+  }, [paginationInfo]);
+
+  // 검색어로 쿼리 리스트 필터링
+  const filteredQueryList = queryList.filter((query: QueryItem) =>
+    query.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (query.description && query.description.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const handleItemClick = (item: ListItem) => {
-    if (onItemSelect) {
-      onItemSelect(item);
+  const handleQueryClick = async (query: QueryItem) => {
+    // 기본 쿼리 정보를 상위 컴포넌트에 전달
+    const data = { 
+      query: query.name, 
+      id: query.id,
+      type: query.type,
+      description: query.description || '', // null인 경우 빈 문자열로 처리
+      timestamp: new Date().toISOString()
+    };
+    
+    // 상위 컴포넌트에 데이터 전달
+    onQuerySelect(data);
+    
+    // 모바일에서 메뉴 닫기
+    if (isMobile) {
+      setIsMobileMenuOpen(false);
     }
   };
 
-  return (
-    <div className="w-80 h-full bg-background-main border-r border-border-light flex flex-col">
-      {/* 헤더 */}
-      <div className="p-4 border-b border-border-light">
-        <h2 className="text-lg font-semibold text-text-primary mb-3">리스트</h2>
-        
-        {/* 검색 입력 */}
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="검색..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-border-main rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-main focus:border-transparent"
-          />
-          <svg
-            className="absolute left-3 top-2.5 w-4 h-4 text-text-light"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
-        </div>
-      </div>
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
 
-      {/* 리스트 컨테이너 */}
-      <div className="flex-1 overflow-y-auto">
-        {isLoading ? (
-          /* 로딩 상태 */
-          <div className="p-4 text-center">
-            <div className="animate-spin w-6 h-6 border-2 border-primary-main border-t-transparent rounded-full mx-auto mb-2"></div>
-            <p className="text-sm text-text-secondary">로딩 중...</p>
+  // 페이지 변경 핸들러 (즉시 시각적 피드백 제공)
+  const handlePageChange = (page: number) => {
+    setLoadingPage(page); // 로딩 상태 설정
+    setLocalCurrentPage(page); // 즉시 UI 업데이트
+    onPageChange(page); // 실제 API 호출
+  };
+
+
+
+  return (
+    <>
+      {/* 모바일 햄버거 메뉴 버튼 */}
+      {isMobile && (
+        <button
+          onClick={toggleMobileMenu}
+          className="fixed top-[70px] left-5 z-[1001] bg-primary-main text-white border-none rounded-lg p-3 cursor-pointer text-lg shadow-button"
+        >
+          {isMobileMenuOpen ? '✕' : '☰'}
+        </button>
+      )}
+
+      {/* 모바일 오버레이 */}
+      {isMobile && isMobileMenuOpen && (
+        <div
+          onClick={() => setIsMobileMenuOpen(false)}
+          className="fixed top-15 left-0 right-0 bottom-8 bg-black bg-opacity-50 z-[999]"
+        />
+      )}
+
+      {/* 사이드바 */}
+      <div 
+        className={`
+          ${isMobile ? 'w-[300px] min-w-[300px]' : 'w-[35%] min-w-[300px]'} 
+          bg-background-soft p-4 overflow-y-auto flex-shrink-0
+          ${isMobile ? 'fixed' : 'relative'}
+          ${isMobile ? 'top-15' : 'top-0'}
+          ${isMobile && !isMobileMenuOpen ? '-left-[300px]' : 'left-0'}
+          ${isMobile ? 'h-[calc(100vh-92px)]' : 'h-full'}
+          z-[1000] transition-all duration-300 ease-in-out
+          ${isMobile ? 'shadow-medium' : ''}
+          border-r border-border-light mobile-hide-scrollbar
+          pt-20 flex flex-col
+        `}
+      >
+        <div className="mb-5">
+          <h2 className={`
+            ${isMobile ? 'mt-0 mb-2 text-lg' : 'mt-0 mb-2 text-xl'} 
+            text-text-primary font-semibold
+          `}>
+            쿼리 목록
+          </h2>
+          {paginationInfo && (
+            <div className={`
+              ${isMobile ? 'text-xs' : 'text-sm'} 
+              text-text-muted
+            `}>
+              총 {paginationInfo.count}개 • 페이지 {localCurrentPage || paginationInfo.page} • {paginationInfo.pageSize}개씩 표시
+              {loadingPage && (
+                <span className="ml-2 text-primary-main">
+                  로딩 중...
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+        
+        {/* 검색 입력창 */}
+        <div className="mb-4">
+          <div className="relative">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="쿼리 검색..."
+              className={`
+                w-full 
+                ${isMobile ? 'px-3 py-2 text-sm' : 'px-4 py-3 text-base'}
+                border border-border-light rounded-lg
+                bg-background-main text-text-primary
+                placeholder:text-text-muted
+                focus:outline-none focus:ring-2 focus:ring-primary-main focus:border-primary-main
+                transition-all duration-200
+              `}
+            />
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-text-muted">
+              🔍
+            </div>
           </div>
-        ) : filteredItems.length === 0 ? (
-          /* 빈 상태 */
-          <div className="p-4 text-center">
-            <svg
-              className="w-12 h-12 text-text-light mx-auto mb-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1}
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            <p className="text-sm text-text-secondary">
-              {searchTerm ? '검색 결과가 없습니다' : '리스트가 비어있습니다'}
-            </p>
-          </div>
-        ) : (
-          /* 리스트 아이템들 */
-          <div className="p-2">
-            {filteredItems.map((item) => (
-              <div
-                key={item.id}
-                onClick={() => handleItemClick(item)}
-                className={`p-3 rounded-lg cursor-pointer transition-all duration-200 mb-2 hover:bg-secondary-pale ${
-                  selectedItemId === item.id 
-                    ? 'bg-primary-pale border-l-4 border-primary-main' 
-                    : 'hover:shadow-soft'
-                }`}
-              >
-                {/* 제목 */}
-                <h3 className="font-medium text-text-primary text-sm mb-1 line-clamp-2">
-                  {item.title}
-                </h3>
-                
-                {/* 설명 */}
-                {item.description && (
-                  <p className="text-xs text-text-secondary line-clamp-2 mb-2">
-                    {item.description}
-                  </p>
-                )}
-                
-                {/* 상태/타입 배지 */}
-                <div className="flex items-center gap-2">
-                  {item.status && (
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      item.status === 'active' ? 'bg-success-pale text-success-main' :
-                      item.status === 'pending' ? 'bg-warning-pale text-warning-main' :
-                      item.status === 'completed' ? 'bg-primary-pale text-primary-main' :
-                      'bg-secondary-pale text-secondary-main'
-                    }`}>
-                      {item.status}
-                    </span>
+          {searchQuery && (
+            <div className={`
+              ${isMobile ? 'mt-2 text-xs' : 'mt-2 text-sm'} 
+              text-text-secondary
+            `}>
+              {filteredQueryList.length}개의 결과 찾음
+            </div>
+          )}
+        </div>
+
+        <ul className="list-none p-0 m-0 flex-1 overflow-y-auto border border-border-light rounded-lg overflow-hidden">
+          {apiData?.loading ? (
+            <li className="text-center py-8">
+              <div className="animate-spin w-6 h-6 border-2 border-primary-main border-t-transparent rounded-full mx-auto mb-2"></div>
+              <div className={`
+                ${isMobile ? 'text-sm' : 'text-base'} 
+                text-text-secondary font-medium
+              `}>
+                쿼리 목록 로딩 중...
+              </div>
+            </li>
+          ) : apiData?.error ? (
+            <li className="text-center py-8">
+              <div className="text-text-muted text-4xl mb-2">⚠️</div>
+              <div className={`
+                ${isMobile ? 'text-sm' : 'text-base'} 
+                text-text-secondary font-medium mb-1
+              `}>
+                데이터 로딩 실패
+              </div>
+              <div className={`
+                ${isMobile ? 'text-xs' : 'text-sm'} 
+                text-text-muted
+              `}>
+                {apiData.error}
+              </div>
+            </li>
+          ) : filteredQueryList.length === 0 ? (
+            <li className="text-center py-8">
+              <div className="text-text-muted text-4xl mb-2">
+                {queryList.length === 0 ? '📭' : '🔍'}
+              </div>
+              <div className={`
+                ${isMobile ? 'text-sm' : 'text-base'} 
+                text-text-secondary font-medium mb-1
+              `}>
+                {queryList.length === 0 ? '쿼리 목록이 없습니다' : '검색 결과가 없습니다'}
+              </div>
+              <div className={`
+                ${isMobile ? 'text-xs' : 'text-sm'} 
+                text-text-muted
+              `}>
+                {queryList.length === 0 ? 'API에서 쿼리 데이터를 받아오지 못했습니다' : '다른 키워드로 검색해보세요'}
+              </div>
+            </li>
+          ) : (
+            filteredQueryList.map((query: QueryItem) => {
+              return (
+                <li 
+                  key={query.id}
+                  onClick={() => handleQueryClick(query)}
+                  className={`
+                    p-2 bg-background-main cursor-pointer
+                    border-b border-gray-200 last:border-b-0
+                    ${isMobile ? 'text-sm' : 'text-base'}
+                    transition-all duration-200
+                    hover:bg-primary-pale
+                    ${query.isArchived ? 'opacity-60' : ''}
+                  `}
+                >
+                  {/* 쿼리 이름, 즐겨찾기, 날짜 */}
+                  <div className="flex items-start justify-between mb-1">
+                    <div className="flex items-start gap-1 flex-1">
+                      <div className={`
+                        font-semibold leading-tight
+                        ${isMobile ? 'text-xs' : 'text-sm'}
+                        overflow-hidden text-ellipsis
+                        text-text-primary flex-1
+                      `}
+                      style={{ lineClamp: 1, display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical' }}
+                      >
+                        {query.name}
+                      </div>
+                      {query.isFavorite && (
+                        <span className="text-yellow-500 text-xs">⭐</span>
+                      )}
+                    </div>
+                    {query.updatedAt && (
+                      <div className="text-xs text-text-muted leading-none ml-2 flex-shrink-0">
+                        {query.updatedAt}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 설명 */}
+                  {query.description && (
+                    <div className="text-xs text-text-muted mb-1 line-clamp-1 leading-tight">
+                      {query.description}
+                    </div>
+                  )}
+
+                  {/* 작성자와 실행시간 */}
+                  <div className="flex items-center justify-between pt-1 text-xs text-text-muted leading-none">
+                    <span>👤 {query.user}</span>
+                    {query.runtime && (
+                      <span>⏱️ {query.runtime}</span>
+                    )}
+                  </div>
+                </li>
+              );
+            })
+          )}
+        </ul>
+
+        {/* 페이지네이션 */}
+        {paginationInfo && filteredQueryList.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-border-light">
+            {(() => {
+              const currentPage = localCurrentPage || paginationInfo.page;
+              const totalPages = Math.ceil(paginationInfo.count / paginationInfo.pageSize);
+              const maxVisiblePages = isMobile ? 5 : 7;
+              
+              // 페이지 번호 범위 계산
+              let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+              const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+              
+              // 끝 페이지가 조정되면 시작 페이지도 다시 조정
+              if (endPage - startPage + 1 < maxVisiblePages) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+              }
+              
+              const pageNumbers = [];
+              for (let i = startPage; i <= endPage; i++) {
+                pageNumbers.push(i);
+              }
+              
+              return (
+                <div className="flex items-center justify-center gap-1 flex-wrap">
+                  {/* 첫 페이지로 이동 */}
+                  {currentPage > 1 && (
+                    <button
+                      onClick={() => handlePageChange(1)}
+                      disabled={loadingPage === 1}
+                      className={`
+                        w-8 h-8 rounded text-xs font-medium transition-all
+                        ${loadingPage === 1 
+                          ? 'bg-primary-pale text-primary-main cursor-not-allowed' 
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300'
+                        }
+                      `}
+                    >
+                      «
+                    </button>
                   )}
                   
-                  {item.type && (
-                    <span className="px-2 py-1 bg-secondary-lighter text-secondary-dark rounded text-xs">
-                      {item.type}
-                    </span>
+                  {/* 이전 페이지 */}
+                  {currentPage > 1 && (
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={loadingPage === currentPage - 1}
+                      className={`
+                        w-8 h-8 rounded text-xs font-medium transition-all
+                        ${loadingPage === currentPage - 1 
+                          ? 'bg-primary-pale text-primary-main cursor-not-allowed' 
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300'
+                        }
+                      `}
+                    >
+                      ‹
+                    </button>
+                  )}
+                  
+                  {/* 시작 부분에 ... 표시 */}
+                  {startPage > 1 && (
+                    <>
+                      <button
+                        onClick={() => handlePageChange(1)}
+                        disabled={loadingPage === 1}
+                        className={`
+                          w-8 h-8 rounded text-xs font-medium transition-all
+                          ${loadingPage === 1 
+                            ? 'bg-primary-pale text-primary-main cursor-not-allowed' 
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300'
+                          }
+                        `}
+                      >
+                        1
+                      </button>
+                      {startPage > 2 && (
+                        <span className="text-gray-400 text-xs">...</span>
+                      )}
+                    </>
+                  )}
+                  
+                  {/* 페이지 번호들 */}
+                  {pageNumbers.map((pageNum) => (
+                    <button
+                      key={pageNum}
+                      onClick={() => handlePageChange(pageNum)}
+                      disabled={loadingPage === pageNum}
+                      className={`
+                        w-8 h-8 rounded text-xs font-medium transition-all
+                        ${pageNum === currentPage
+                          ? 'bg-primary-main text-white shadow-md'
+                          : loadingPage === pageNum
+                          ? 'bg-primary-pale text-primary-main cursor-not-allowed'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300'
+                        }
+                      `}
+                    >
+                      {pageNum}
+                    </button>
+                  ))}
+                  
+                  {/* 끝 부분에 ... 표시 */}
+                  {endPage < totalPages && (
+                    <>
+                      {endPage < totalPages - 1 && (
+                        <span className="text-gray-400 text-xs">...</span>
+                      )}
+                      <button
+                        onClick={() => handlePageChange(totalPages)}
+                        disabled={loadingPage === totalPages}
+                        className={`
+                          w-8 h-8 rounded text-xs font-medium transition-all
+                          ${loadingPage === totalPages 
+                            ? 'bg-primary-pale text-primary-main cursor-not-allowed' 
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300'
+                          }
+                        `}
+                      >
+                        {totalPages}
+                      </button>
+                    </>
+                  )}
+                  
+                  {/* 다음 페이지 */}
+                  {currentPage < totalPages && (
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={loadingPage === currentPage + 1}
+                      className={`
+                        w-8 h-8 rounded text-xs font-medium transition-all
+                        ${loadingPage === currentPage + 1 
+                          ? 'bg-primary-pale text-primary-main cursor-not-allowed' 
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300'
+                        }
+                      `}
+                    >
+                      ›
+                    </button>
+                  )}
+                  
+                  {/* 마지막 페이지로 이동 */}
+                  {currentPage < totalPages && (
+                    <button
+                      onClick={() => handlePageChange(totalPages)}
+                      disabled={loadingPage === totalPages}
+                      className={`
+                        w-8 h-8 rounded text-xs font-medium transition-all
+                        ${loadingPage === totalPages 
+                          ? 'bg-primary-pale text-primary-main cursor-not-allowed' 
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300'
+                        }
+                      `}
+                    >
+                      »
+                    </button>
                   )}
                 </div>
-              </div>
-            ))}
+              );
+            })()}
+            
+            {/* 페이지 정보 */}
+            <div className={`
+              mt-3 text-center
+              ${isMobile ? 'text-xs' : 'text-sm'} 
+              text-text-muted
+            `}>
+              총 {paginationInfo.count}개 중 {(((localCurrentPage || paginationInfo.page) - 1) * paginationInfo.pageSize) + 1}-{Math.min((localCurrentPage || paginationInfo.page) * paginationInfo.pageSize, paginationInfo.count)}번째 표시
+              {loadingPage && (
+                <div className="mt-1 text-primary-main">
+                  <span className="inline-block animate-spin">⟳</span> 페이지 {loadingPage} 로딩 중...
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
 
-      {/* 푸터 정보 */}
-      <div className="p-3 border-t border-border-light bg-background-soft">
-        <p className="text-xs text-text-light text-center">
-          총 {items.length}개 항목
-          {searchTerm && ` · ${filteredItems.length}개 검색됨`}
-        </p>
-      </div>
-    </div>
+
+    </>
   );
-}
+};
+
+export default LNB;

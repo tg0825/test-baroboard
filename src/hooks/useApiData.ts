@@ -25,7 +25,6 @@ export function useApiData<T = unknown>() {
       loading: false,
       error: null,
     });
-    console.log(`📊 API 데이터 저장 완료 (총 ${requestCount + 1}회 요청)`);
     setRequestCount(prev => prev + 1);
   };
 
@@ -37,7 +36,6 @@ export function useApiData<T = unknown>() {
   // 에러 상태 설정
   const setError = (error: string) => {
     setState(prev => ({ ...prev, error, loading: false }));
-    console.log(`❌ API 오류 발생 (총 ${requestCount + 1}회 요청 후):`, error);
     setRequestCount(prev => prev + 1);
   };
 

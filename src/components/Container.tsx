@@ -2,11 +2,22 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
-import Graph from './Graph';
 
-interface DetailApiData {
-  originalHtml: string;
-  bodyContent: string;
+interface DetailApiResponse {
+  data: string;
+  timestamp: string;
+  type: 'detail' | 'plain';
+}
+
+interface PlainApiResponse {
+  data: any; // JSON 또는 string
+  timestamp: string;
+  type: 'detail' | 'plain';
+}
+
+interface TableData {
+  columns: Array<{ name: string }>;
+  rows: Array<Record<string, any>>;
 }
 
 interface SelectedQuery {
@@ -14,10 +25,6 @@ interface SelectedQuery {
   query: string;
   type: string;
   description: string;
-  redashData?: unknown;
-  infoApiData?: unknown;
-  detailApiData?: DetailApiData | null;
-  error?: string;
   timestamp: string;
 }
 
@@ -28,9 +35,81 @@ interface ContainerProps {
 
 const Container = ({ selectedQuery, apiError }: ContainerProps) => {
   const [isMobile, setIsMobile] = useState(false);
-  const [fullQueryData, setFullQueryData] = useState<SelectedQuery | null>(null);
-  const [currentAbortController, setCurrentAbortController] = useState<AbortController | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [detailResponse, setDetailResponse] = useState<DetailApiResponse | null>(null);
+  const [plainResponse, setPlainResponse] = useState<PlainApiResponse | null>(null);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  const [isLoadingPlain, setIsLoadingPlain] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // 테이블 데이터 추출 함수
+  const extractTableData = (plainData: any): TableData | null => {
+    try {
+      // query_result.data 구조 확인
+      if (plainData?.query_result?.data?.columns && plainData?.query_result?.data?.rows) {
+        return {
+          columns: plainData.query_result.data.columns,
+          rows: plainData.query_result.data.rows
+        };
+      }
+      return null;
+    } catch (err) {
+      return null;
+    }
+  };
+
+  // 테이블 컴포넌트
+  const TableRenderer = ({ tableData }: { tableData: TableData }) => {
+    if (!tableData.columns.length || !tableData.rows.length) {
+      return (
+        <div className="text-center py-4 text-text-secondary">
+          표시할 데이터가 없습니다.
+        </div>
+      );
+    }
+
+    return (
+      <div className="overflow-x-auto">
+        <table className="min-w-full border border-border-light rounded-lg overflow-hidden">
+          <thead className="bg-background-soft">
+            <tr>
+              {tableData.columns.map((column, index) => (
+                <th
+                  key={index}
+                  className="px-4 py-3 text-left text-sm font-semibold text-text-primary border-b border-border-light"
+                >
+                  {column.name}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-border-light">
+            {tableData.rows.map((row, rowIndex) => (
+              <tr key={rowIndex} className="hover:bg-background-soft transition-colors">
+                {tableData.columns.map((column, colIndex) => (
+                  <td
+                    key={colIndex}
+                    className="px-4 py-3 text-sm text-text-primary border-b border-border-light"
+                  >
+                    <div className="max-w-xs truncate" title={String(row[column.name] || '')}>
+                      {row[column.name] !== null && row[column.name] !== undefined 
+                        ? String(row[column.name]) 
+                        : '-'
+                      }
+                    </div>
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        
+        {/* 테이블 정보 */}
+        <div className="mt-2 text-xs text-text-muted text-center">
+          총 {tableData.rows.length}개 행, {tableData.columns.length}개 열
+        </div>
+      </div>
+    );
+  };
 
   // 화면 크기 감지
   useEffect(() => {
@@ -44,156 +123,109 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  const fetchQueryData = useCallback(async (query: SelectedQuery) => {
+  // API 호출 함수
+  const fetchDetailAndPlainApi = useCallback(async (id: number) => {
+    setIsLoadingDetail(true);
+    setIsLoadingPlain(true);
+    setError(null);
+    
     try {
-      console.log(`🔍 쿼리 ID ${query.id} - n8n webhook API 호출 시작`);
-      
-      // 기존 요청이 있으면 취소
-      if (currentAbortController) {
-        currentAbortController.abort();
-        console.log('🚫 기존 API 요청 취소됨');
-      }
-      
-      // 새로운 AbortController 생성
-      const abortController = new AbortController();
-      setCurrentAbortController(abortController);
-      setIsLoading(true);
-      
-      // n8n webhook API 호출
       const apiKey = localStorage.getItem('baroboard_api_key');
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
       
-      // API 키가 있으면 헤더에 추가
       if (apiKey) {
         headers['Authorization'] = `Key ${apiKey}`;
       }
+
+      // 1단계: pre API 호출하여 latest_query_data_id 얻기
+      const preApiUrl = `https://tg0825.app.n8n.cloud/webhook/01dedf36-0da7-4546-b5c2-dac80381452c?item-id=${id}&api-type=pre`;
       
-      // n8n info api
-      const apiUrl = `https://tg0825.app.n8n.cloud/webhook/01dedf36-0da7-4546-b5c2-dac80381452c?item-id=${query.id}`;
-      console.log('🔗 n8n webhook API 요청:', apiUrl);
-      console.log('📤 요청 헤더:', headers);
-      
-      const response = await fetch(apiUrl, {
+      const preResponse = await fetch(preApiUrl, {
         method: 'GET',
         headers,
-        signal: abortController.signal,
       });
 
-      if (response.ok) {
-        const responseData = await response.json() as Record<string, unknown>;
-        console.log('✅ n8n webhook API 응답:', responseData);
-        
-        // latest_query_data_id 확인 (body 안에 있음)
-        const latestQueryDataId = (responseData?.body as Record<string, unknown>)?.latest_query_data_id;
-        let detailApiData: DetailApiData | null = null;
-        
-        console.log('🔍 responseData 전체 구조:', responseData);
-        console.log('🔍 responseData.body:', responseData?.body);
-        console.log('🔍 latest_query_data_id 값:', latestQueryDataId);
-        console.log('🔍 latest_query_data_id 타입:', typeof latestQueryDataId);
-        console.log('🔍 null 체크:', latestQueryDataId !== null);
-        console.log('🔍 falsy 체크:', !!latestQueryDataId);
-        
-        if (latestQueryDataId && latestQueryDataId !== null) {
-          console.log(`🔍 latest_query_data_id 발견: ${latestQueryDataId} - n8n detail API 호출 시작`);
-          
-          try {
-            // n8n detail API 호출 (is-detail=true와 latest_query_data_id를 쿼리 파라미터로 추가)
-            const detailApiUrl = `https://tg0825.app.n8n.cloud/webhook/01dedf36-0da7-4546-b5c2-dac80381452c?item-id=${query.id}&is-detail=true&latest_query_data_id=${latestQueryDataId}`;
-            
-            // detail API용 헤더 (API 키만 추가)
-            const detailHeaders: Record<string, string> = {
-              'Content-Type': 'application/json'
-            };
-            
-            // API 키가 있으면 헤더에 추가
-            if (apiKey) {
-              detailHeaders['Authorization'] = `Key ${apiKey}`;
-            }
-            
-            console.log('🔗 n8n detail API 요청:', detailApiUrl);
-            console.log('📤 n8n detail 요청 헤더:', detailHeaders);
-            console.log('📋 latest_query_data_id 헤더값:', latestQueryDataId);
-            
-            const detailResponse = await fetch(detailApiUrl, {
-              method: 'GET',
-              headers: detailHeaders,
-              signal: abortController.signal,
-            });
-            
-            if (detailResponse.ok) {
-              // HTML 응답을 텍스트로 받기
-              const htmlResponse = await detailResponse.text();
-              console.log('✅ n8n detail API HTML 응답:', htmlResponse);
-              
-              // body 태그 내용 추출
-              const bodyMatch = htmlResponse.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-              const bodyContent = bodyMatch ? bodyMatch[1] : htmlResponse;
-              
-              detailApiData = {
-                originalHtml: htmlResponse,
-                bodyContent: bodyContent
-              };
-              console.log('✅ 추출된 body 내용:', bodyContent);
-            } else {
-              console.error('❌ n8n detail API 호출 실패:', detailResponse.status);
-            }
-                  } catch (detailError: unknown) {
-          if ((detailError as Error).name !== 'AbortError') {
-            console.error('❌ n8n detail API 호출 오류:', detailError);
-          }
-        }
-        } else {
-          console.log('ℹ️ latest_query_data_id가 null이거나 없음 - n8n detail API 호출 건너뜀');
-        }
-        
-        const fullData = { 
-          ...query,
-          infoApiData: responseData, // 정보 API에서 받은 데이터
-          detailApiData: detailApiData, // 디테일 API에서 받은 데이터 (있는 경우)
-        };
-        
-        setFullQueryData(fullData);
-      } else {
-        console.error('❌ n8n webhook API 호출 실패:', response.status);
-        
-        const errorData = { 
-          ...query,
-          error: `n8n webhook API 호출 실패: ${response.status}`,
-        };
-        
-        setFullQueryData(errorData);
+      if (!preResponse.ok) {
+        throw new Error(`Pre API 호출 실패: ${preResponse.status}`);
       }
-    } catch (error: unknown) {
-      // AbortError는 의도적인 취소이므로 로그만 출력
-      if ((error as Error).name === 'AbortError') {
-        console.log('🚫 API 요청이 취소되었습니다');
-        return; // 상태를 업데이트하지 않음
+
+      const preData = await preResponse.json() as Record<string, unknown>;
+      const latestQueryDataId = (preData?.body as Record<string, unknown>)?.latest_query_data_id;
+
+      if (!latestQueryDataId) {
+        setError('latest_query_data_id를 찾을 수 없습니다.');
+        return;
       }
-      
-      console.error('❌ n8n webhook API 호출 오류:', error);
-      
-      const errorData = { 
-        ...query,
-        error: `네트워크 오류: ${error}`,
-      };
-      
-      setFullQueryData(errorData);
-    } finally {
-      setCurrentAbortController(null);
-      setIsLoading(false);
+
+      // 2단계: detail과 plain API를 독립적으로 병렬 호출
+      // Detail API 호출
+      fetch(`https://tg0825.app.n8n.cloud/webhook/01dedf36-0da7-4546-b5c2-dac80381452c?item-id=${id}&api-type=detail&latest_query_data_id=${latestQueryDataId}`, {
+        method: 'GET',
+        headers,
+      })
+      .then(res => res.ok ? res.text() : Promise.reject(`Detail API 실패: ${res.status}`))
+      .then(htmlData => {
+        setDetailResponse({
+          data: htmlData,
+          timestamp: new Date().toISOString(),
+          type: 'detail'
+        });
+      })
+      .catch(err => {
+        setError(`Detail API 오류: ${err}`);
+      })
+      .finally(() => {
+        setIsLoadingDetail(false);
+      });
+
+      // Plain API 호출
+      fetch(`https://tg0825.app.n8n.cloud/webhook/01dedf36-0da7-4546-b5c2-dac80381452c?item-id=${id}&api-type=plain&latest_query_data_id=${latestQueryDataId}`, {
+        method: 'GET',
+        headers,
+      })
+      .then(res => res.ok ? res.text() : Promise.reject(`Plain API 실패: ${res.status}`))
+      .then(jsonData => {
+        // JSON 파싱 시도
+        try {
+          const parsedData = JSON.parse(jsonData);
+          setPlainResponse({
+            data: parsedData,
+            timestamp: new Date().toISOString(),
+            type: 'plain'
+          });
+        } catch (parseError) {
+          // JSON 파싱 실패시 원본 텍스트로 처리
+          setPlainResponse({
+            data: jsonData,
+            timestamp: new Date().toISOString(),
+            type: 'plain'
+          });
+        }
+      })
+      .catch(err => {
+        setError(`Plain API 오류: ${err}`);
+      })
+      .finally(() => {
+        setIsLoadingPlain(false);
+      });
+
+    } catch (err) {
+      setError(`API 호출 중 오류가 발생했습니다: ${err}`);
+      setIsLoadingDetail(false);
+      setIsLoadingPlain(false);
     }
-  }, [currentAbortController]);
+  }, []);
 
   // 선택된 쿼리가 변경될 때 API 호출
   useEffect(() => {
-    if (selectedQuery) {
-      fetchQueryData(selectedQuery);
+    if (selectedQuery && selectedQuery.id) {
+      setDetailResponse(null);
+      setPlainResponse(null);
+      fetchDetailAndPlainApi(selectedQuery.id);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedQuery]); // fetchQueryData 의존성 제거로 무한 루프 방지
+  }, [selectedQuery, fetchDetailAndPlainApi]);
 
   return (
     <div className="flex-1 flex flex-col h-full mt-16 min-w-0 overflow-hidden relative">
@@ -203,13 +235,13 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
           대시보드
         </h1>
         <p className="text-text-secondary mt-1">
-          {fullQueryData ? `선택된 쿼리: ${fullQueryData.query}` : selectedQuery ? "데이터 로딩 중..." : "쿼리를 선택해주세요"}
+          {selectedQuery ? `선택된 쿼리: ${selectedQuery.query}` : "쿼리를 선택해주세요"}
         </p>
       </div>
 
       {/* 메인 컨텐츠 */}
       <div className="flex-1 p-6 overflow-y-auto">
-        {apiError ? (
+        {(apiError || error) ? (
           /* API 에러 상태 */
           <div className="h-full flex items-center justify-center">
             <div className="text-center">
@@ -219,10 +251,10 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
                 </svg>
               </div>
               <h3 className="text-lg font-medium text-red-700 mb-2">연결 오류</h3>
-              <p className="text-red-600">{apiError}</p>
+              <p className="text-red-600">{apiError || error}</p>
             </div>
           </div>
-        ) : fullQueryData ? (
+        ) : selectedQuery ? (
           /* 선택된 쿼리 표시 */
           <div>
             {/* 쿼리 정보 카드 */}
@@ -230,81 +262,97 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                   <h2 className="text-xl font-semibold text-text-primary mb-2">
-                    {fullQueryData.query}
+                    {selectedQuery.query}
                   </h2>
-                  {fullQueryData.description && (
+                  {selectedQuery.description && (
                     <p className="text-text-secondary mb-3">
-                      {fullQueryData.description}
+                      {selectedQuery.description}
                     </p>
                   )}
                   <div className="flex items-center gap-4 text-sm text-text-muted">
-                    <span>ID: {fullQueryData.id}</span>
-                    <span>타입: {fullQueryData.type}</span>
-                    <span>시간: {new Date(fullQueryData.timestamp).toLocaleString()}</span>
+                    <span>ID: {selectedQuery.id}</span>
+                    <span>타입: {selectedQuery.type}</span>
+                    <span>시간: {new Date(selectedQuery.timestamp).toLocaleString()}</span>
                   </div>
                 </div>
               </div>
-              
-              {/* 에러 표시 */}
-              {fullQueryData.error && (
-                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <h4 className="text-red-800 font-medium mb-2">오류 발생</h4>
-                  <p className="text-red-600 text-sm">{fullQueryData.error}</p>
-                </div>
-              )}
             </div>
             
-            {/* 디테일 API HTML 컨텐츠 */}
-            {fullQueryData.detailApiData?.bodyContent && (
-              <div className="bg-white rounded-lg p-6 mb-6">
-                <h3 className="text-lg font-semibold text-text-primary mb-4">
-                  📊 디테일 API 결과
-                </h3>
-                <pre 
-                  className="detail-api-content whitespace-pre-wrap overflow-auto bg-gray-50 p-4 rounded border text-sm"
-                  dangerouslySetInnerHTML={{ __html: fullQueryData.detailApiData.bodyContent }}
-                />
+            {/* 상세 API 응답 (첫 번째) */}
+            <div className="bg-white rounded-lg shadow-sm border border-border-light p-6 mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-text-primary">
+                  📊 상세 API 응답 (api-type=detail)
+                </h2>
+                {isLoadingDetail && (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin w-4 h-4 border-2 border-primary-main border-t-transparent rounded-full"></div>
+                    <span className="text-sm text-text-secondary">로딩 중...</span>
+                  </div>
+                )}
               </div>
-            )}
-            
-            {/* 정보 API 응답 데이터 */}
-            <div className="bg-white rounded-lg p-6 mb-6">
-              <h3 className="text-lg font-semibold text-text-primary mb-4">
-                📋 정보 API 응답 (tg0825.app.n8n.cloud/webhook/...?item-id={fullQueryData.id})
-              </h3>
               
-              {fullQueryData.infoApiData ? (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="mb-3 text-sm text-green-600 font-medium">
-                    ✅ 정보 API 호출 성공
+              {detailResponse ? (
+                <div>
+                  <div className="text-sm text-text-muted mb-3">
+                    응답 시간: {new Date(detailResponse.timestamp).toLocaleString()}
                   </div>
-                  <pre className="text-sm overflow-auto max-h-96 bg-white p-3 rounded border">
-                    {JSON.stringify(fullQueryData.infoApiData, null, 2)}
-                  </pre>
+                  <pre 
+                    className="whitespace-pre-wrap overflow-auto bg-gray-50 p-4 rounded border text-sm max-h-96"
+                    dangerouslySetInnerHTML={{ __html: detailResponse.data }}
+                  />
                 </div>
-              ) : fullQueryData.error ? (
-                <div className="bg-red-50 rounded-lg p-4">
-                  <div className="mb-3 text-sm text-red-600 font-medium">
-                    ❌ 정보 API 호출 실패
-                  </div>
-                  <div className="text-red-600 text-sm">
-                    {fullQueryData.error}
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <div className="text-blue-600 text-sm">
-                    🔄 정보 API 호출 중...
-                  </div>
-                </div>
-              )}
+              ) : !isLoadingDetail ? (
+                <p className="text-text-secondary">아직 응답이 없습니다.</p>
+              ) : null}
             </div>
-            
 
-            {/* 그래프 영역 */}
-            <div className="bg-white rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-text-primary mb-4">데이터 시각화</h3>
-              <Graph data={(fullQueryData.detailApiData || fullQueryData.infoApiData || fullQueryData.redashData || {}) as { [key: string]: unknown }} />
+            {/* 플레인 API 응답 (두 번째) - 테이블 형태 */}
+            <div className="bg-white rounded-lg shadow-sm border border-border-light p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-text-primary">
+                  📋 쿼리 결과 테이블 (api-type=plain)
+                </h2>
+                {isLoadingPlain && (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin w-4 h-4 border-2 border-primary-main border-t-transparent rounded-full"></div>
+                    <span className="text-sm text-text-secondary">로딩 중...</span>
+                  </div>
+                )}
+              </div>
+              
+              {plainResponse ? (
+                <div>
+                  <div className="text-sm text-text-muted mb-3">
+                    응답 시간: {new Date(plainResponse.timestamp).toLocaleString()}
+                  </div>
+                  
+                  {(() => {
+                    const tableData = extractTableData(plainResponse.data);
+                    
+                    if (tableData) {
+                      return <TableRenderer tableData={tableData} />;
+                    } else {
+                      // 테이블 구조가 아닌 경우 원본 데이터 표시
+                      return (
+                        <div>
+                          <p className="text-sm text-text-secondary mb-2">
+                            테이블 형식이 아닌 응답입니다:
+                          </p>
+                          <pre className="whitespace-pre-wrap overflow-auto bg-gray-50 p-4 rounded border text-sm max-h-96">
+                            {typeof plainResponse.data === 'string' 
+                              ? plainResponse.data 
+                              : JSON.stringify(plainResponse.data, null, 2)
+                            }
+                          </pre>
+                        </div>
+                      );
+                    }
+                  })()}
+                </div>
+              ) : !isLoadingPlain ? (
+                <p className="text-text-secondary">아직 응답이 없습니다.</p>
+              ) : null}
             </div>
           </div>
         ) : (
@@ -329,16 +377,6 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
           </div>
         )}
       </div>
-
-      {/* 로딩 오버레이 */}
-      {isLoading && (
-        <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50 animate-fadeIn">
-          <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-lg p-6 shadow-md flex flex-col items-center animate-scaleIn">
-            <div className="animate-spin rounded-full h-10 w-10 border-2 border-gray-200 border-t-primary-main mb-3"></div>
-            <p className="text-text-primary font-medium text-sm">데이터를 불러오는 중...</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

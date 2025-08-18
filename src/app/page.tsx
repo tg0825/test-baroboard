@@ -25,7 +25,6 @@ export default function Home() {
     if (!user?.isLoggedIn) return;
 
     try {
-      console.log(`🚀 페이지 ${page} 데이터 로딩 시작`);
       apiData.setLoading(true);
       
       const controller = new AbortController();
@@ -51,20 +50,16 @@ export default function Home() {
 
       if (response.ok) {
         const result = await response.json();
-        console.log(`✅ 페이지 ${page} API 응답:`, result);
         
         // API 응답 데이터를 전역 상태에 저장
         apiData.setMainPageData(result);
       } else {
-        console.error(`❌ 페이지 ${page} API 실패:`, response.status);
         apiData.setError(`API 호출 실패: ${response.status}`);
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        console.error('⏰ API 요청 타임아웃');
         apiData.setError('API 요청 시간이 초과되었습니다.');
       } else {
-        console.error(`❌ 페이지 ${page} API 오류:`, error);
         apiData.setError('네트워크 연결 오류가 발생했습니다.');
       }
     }

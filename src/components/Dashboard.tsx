@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Container from './Container';
-import Sidebar from './Sidebar';
+import LNB from './LNB';
 
 interface SelectedQuery {
   id: number;
@@ -32,17 +33,18 @@ interface DashboardProps {
 }
 
 const Dashboard = ({ apiData, onPageChange }: DashboardProps) => {
+  const router = useRouter();
   const [selectedQuery, setSelectedQuery] = useState<SelectedQuery | null>(null);
 
   const handleQuerySelect = (queryData: Record<string, unknown>) => {
-    console.log('📋 Dashboard에서 쿼리 선택됨:', queryData);
     setSelectedQuery(queryData as unknown as SelectedQuery);
+    // 라우터 이동 제거 - 같은 페이지에서 상세 정보 표시
   };
 
   return (
     <div className="h-full flex">
       {/* 좌측 쿼리 목록 */}
-      <Sidebar 
+      <LNB 
         onQuerySelect={handleQuerySelect} 
         apiData={apiData}
         onPageChange={onPageChange}
