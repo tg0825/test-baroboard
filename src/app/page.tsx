@@ -18,10 +18,15 @@ export default function Home() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
+      console.log('🌐 Current pathname:', path);
       const queryMatch = path.match(/^\/query\/(\d+)\/?$/);
+      console.log('🔍 Query match:', queryMatch);
       if (queryMatch) {
         const id = parseInt(queryMatch[1]);
+        console.log('✅ Extracted queryId:', id);
         setQueryId(id);
+      } else {
+        console.log('❌ No query ID found in path');
       }
     }
   }, []);

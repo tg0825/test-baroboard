@@ -41,15 +41,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const email = localStorage.getItem('userEmail');
         const session = localStorage.getItem('userSession');
         
+        console.log('🔐 Auth check - isLoggedIn:', isLoggedIn, 'Email:', email, 'Session:', session);
+        
         if (isLoggedIn && email) {
+          console.log('✅ User logged in');
           setUser({
             email,
             isLoggedIn: true,
             session: session || undefined,
           });
+        } else {
+          console.log('❌ User not logged in');
         }
       } catch (error) {
-        // Auth initialization error
+        console.error('🚨 Auth initialization error:', error);
       } finally {
         setIsLoading(false);
       }

@@ -35,6 +35,9 @@ interface DashboardProps {
 
 const Dashboard = ({ apiData, onPageChange, initialQueryId }: DashboardProps) => {
   const [selectedQuery, setSelectedQuery] = useState<SelectedQuery | null>(null);
+  
+  // 디버깅 로그
+  console.log('🏠 Dashboard loaded with initialQueryId:', initialQueryId);
 
   // URL에서 추출한 initialQueryId로 즉시 쿼리 선택 (API 데이터 로딩 기다리지 않음)
   useEffect(() => {
