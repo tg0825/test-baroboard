@@ -14,11 +14,11 @@ export default function Home() {
   const [queryId, setQueryId] = useState<number | undefined>(undefined);
   const apiData = useApiData();
 
-  // S3 CSR: URL에서 쿼리 ID 추출 (클라이언트 사이드 라우팅)
-  useEffect(() => {
+  // SPA URL 핸들링: JavaScript로 URL 변경 감지 및 처리
+  const handleUrlChange = useCallback(() => {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
-      console.log('🌐 Current pathname:', path);
+      console.log('🌐 URL changed - pathname:', path);
       const queryMatch = path.match(/^\/query\/(\d+)\/?$/);
       console.log('🔍 Query match:', queryMatch);
       if (queryMatch) {
@@ -26,10 +26,33 @@ export default function Home() {
         console.log('✅ Extracted queryId:', id);
         setQueryId(id);
       } else {
-        console.log('❌ No query ID found in path');
+        console.log('❌ No query ID found in path, resetting');
+        setQueryId(undefined);
       }
     }
   }, []);
+
+  // 초기 로드 + 이벤트 리스너 등록 (SPA 라우팅)
+  useEffect(() => {
+    // 초기 URL 파싱
+    handleUrlChange();
+    
+    // 브라우저 뒤로/앞으로 가기 감지
+    window.addEventListener('popstate', handleUrlChange);
+    
+    // Dashboard에서 발생시키는 커스텀 이벤트 감지
+    const handleCustomRouteChange = () => {
+      console.log('🔄 Custom route change detected');
+      handleUrlChange();
+    };
+    window.addEventListener('baroboard-route-change', handleCustomRouteChange);
+    
+    // cleanup
+    return () => {
+      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('baroboard-route-change', handleCustomRouteChange);
+    };
+  }, [handleUrlChange]);
 
   // 로그인 상태 확인
   useEffect(() => {

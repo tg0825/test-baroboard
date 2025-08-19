@@ -60,6 +60,11 @@ const Dashboard = ({ apiData, onPageChange, initialQueryId }: DashboardProps) =>
         '',
         `/query/${query.id}`
       );
+      
+      // 커스텀 이벤트 발생 (초기 로드시에만)
+      window.dispatchEvent(new CustomEvent('baroboard-route-change', {
+        detail: { queryId: query.id }
+      }));
     }
   }, [initialQueryId, selectedQuery]);
 
@@ -103,6 +108,13 @@ const Dashboard = ({ apiData, onPageChange, initialQueryId }: DashboardProps) =>
           '',
           `/query/${updatedQuery.id}`
         );
+        
+        // 이름이 변경된 경우에만 커스텀 이벤트 발생 (중복 방지)
+        if (queryFound.name !== selectedQuery.name) {
+          window.dispatchEvent(new CustomEvent('baroboard-route-change', {
+            detail: { queryId: updatedQuery.id }
+          }));
+        }
       }
     }
   }, [initialQueryId, apiData.data, apiData.loading]); // selectedQuery 의존성 제거
@@ -117,6 +129,11 @@ const Dashboard = ({ apiData, onPageChange, initialQueryId }: DashboardProps) =>
       '',
       `/query/${query.id}`
     );
+    
+    // 커스텀 이벤트 발생시켜서 page.tsx에서 URL 변경 감지
+    window.dispatchEvent(new CustomEvent('baroboard-route-change', {
+      detail: { queryId: query.id }
+    }));
   };
 
   // 페이지 제목 업데이트
