@@ -136,14 +136,7 @@ const Dashboard = ({ apiData, onPageChange, initialQueryId }: DashboardProps) =>
     }));
   };
 
-  // 페이지 제목 업데이트
-  useEffect(() => {
-    if (selectedQuery) {
-      document.title = `${selectedQuery.query} - Baro Board`;
-    } else {
-      document.title = 'Baro Board';
-    }
-  }, [selectedQuery]);
+  // 페이지 제목은 Container.tsx에서 상세 API 응답 기반으로 설정됨
 
   // 브라우저 뒤로가기/앞으로가기 대응
   useEffect(() => {

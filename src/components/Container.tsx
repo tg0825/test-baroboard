@@ -84,6 +84,9 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
   });
   const [isColumnSettingsVisible, setIsColumnSettingsVisible] = useState(false);
 
+  // API에서 가져온 쿼리 제목 (pre API의 body.name)
+  const [apiQueryTitle, setApiQueryTitle] = useState<string | null>(null);
+
   // 컬럼 숨기기/보이기 핸들러 함수들
   const handleColumnRightClick = (e: React.MouseEvent, columnName: string) => {
     e.preventDefault();
@@ -130,6 +133,17 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
 
   const closeContextMenu = () => {
     setContextMenu(prev => ({ ...prev, isVisible: false }));
+  };
+
+  // 제목 추출 함수 (pre API의 body.name 우선 사용)
+  const extractQueryTitle = (): string | null => {
+    // pre API에서 가져온 제목이 있으면 우선 사용
+    if (apiQueryTitle) {
+      return apiQueryTitle;
+    }
+    
+    // fallback: selectedQuery에서 가져오기
+    return selectedQuery?.name || null;
   };
 
   // 테이블 데이터 추출 함수
@@ -617,7 +631,24 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
     setSelectedYColumn(null);
     setHiddenColumns(new Set()); // 숨겨진 컬럼들 초기화
     setContextMenu(prev => ({ ...prev, isVisible: false })); // 컨텍스트 메뉴 닫기
+    setApiQueryTitle(null); // API에서 가져온 제목 초기화
   }, [selectedQuery?.id]);
+
+  // 상세 API 응답이 로드되면 페이지 제목 업데이트
+  useEffect(() => {
+    const queryTitle = extractQueryTitle();
+    const queryId = selectedQuery?.id;
+    
+    if (queryTitle && queryId) {
+      document.title = `${queryTitle} (#${queryId}) - Baro Board`;
+    } else if (queryTitle) {
+      document.title = `${queryTitle} - Baro Board`;
+    } else if (queryId) {
+      document.title = `쿼리 #${queryId} - Baro Board`;
+    } else {
+      document.title = 'Baro Board';
+    }
+  }, [apiQueryTitle, selectedQuery?.id]);
 
   // API 호출 함수
   const fetchDetailAndPlainApi = useCallback(async (id: number) => {
@@ -649,6 +680,15 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
 
       const preData = await preResponse.json() as Record<string, unknown>;
       const latestQueryDataId = (preData?.body as Record<string, unknown>)?.latest_query_data_id;
+      
+      // pre API 응답에서 쿼리 제목 추출 (body.name)
+      const queryName = (preData?.body as Record<string, unknown>)?.name;
+      if (queryName && typeof queryName === 'string') {
+        console.log('✅ Pre API에서 제목 추출:', queryName);
+        setApiQueryTitle(queryName);
+      } else {
+        console.log('❌ Pre API에서 제목 추출 실패, body:', preData?.body);
+      }
 
       if (!latestQueryDataId) {
         setError('latest_query_data_id를 찾을 수 없습니다.');
@@ -750,7 +790,20 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
       <div dangerouslySetInnerHTML={{ __html: '<!-- 대시보드 헤더 영역 -->' }} />
       <div className="border-b border-border-light p-4 bg-background-main">
         <h1 className="text-2xl font-bold text-text-primary" data-testid="dashboard-title">
-          {selectedQuery ? `대시보드 - ${selectedQuery.name} (#${selectedQuery.id})` : '대시보드'}
+          {(() => {
+            const queryTitle = extractQueryTitle();
+            const queryId = selectedQuery?.id;
+            
+            if (queryTitle && queryId) {
+              return `대시보드 - ${queryTitle} (#${queryId})`;
+            } else if (queryTitle) {
+              return `대시보드 - ${queryTitle}`;
+            } else if (queryId) {
+              return `대시보드 - 쿼리 #${queryId}`;
+            } else {
+              return '대시보드';
+            }
+          })()}
         </h1>
         <p className="text-text-secondary mt-1">
           {selectedQuery ? (
