@@ -1,0 +1,12 @@
+# Cloudflare Pages SPA Redirect Rules
+# 모든 경로를 index.html로 리다이렉트 (SPA 지원)
+
+# API나 정적 파일이 아닌 경우 index.html로 리다이렉트
+/query/* /index.html 200
+/login /index.html 200
+
+# 루트 경로는 그대로
+/ /index.html 200
+
+# 404 에러도 index.html로 리다이렉트
+/* /index.html 404
