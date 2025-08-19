@@ -1,11 +1,18 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
 const GNB = () => {
   const [isMobile, setIsMobile] = useState(false);
   const { user, logout } = useAuth();
+  const router = useRouter();
+
+  // 로고 클릭시 홈페이지로 이동
+  const handleLogoClick = () => {
+    router.push('/');
+  };
 
   // 화면 크기 감지
   useEffect(() => {
@@ -31,7 +38,11 @@ const GNB = () => {
       
       <nav className={`fixed ${user?.session ? 'top-6' : 'top-0'} left-0 right-0 h-15 bg-primary-main border-b border-primary-dark flex items-center justify-between px-4 md:px-6 z-[1002]`}>
         {/* 로고 */}
-        <div className="flex items-center gap-3">
+        <div 
+          onClick={handleLogoClick}
+          className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity duration-200"
+          title="홈으로 이동"
+        >
           <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-primary-main font-bold text-base">
             B
           </div>
