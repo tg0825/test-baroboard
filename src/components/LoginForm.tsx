@@ -131,7 +131,7 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
         </div>
 
         {/* 로그인 폼 */}
-        <div className="card p-8 shadow-strong">
+        <div className="card p-8 shadow-strong" data-testid="login-form">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* 이메일 입력 */}
             <div>
@@ -154,9 +154,10 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
                 placeholder="이메일을 입력하세요"
                 required
                 disabled={isLoading}
+                data-testid="email-input"
               />
               {emailError && (
-                <p className="mt-1 text-sm text-red-600">{emailError}</p>
+                <p className="mt-1 text-sm text-red-600" data-testid="email-error">{emailError}</p>
               )}
             </div>
 
@@ -177,12 +178,13 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
                 placeholder="비밀번호를 입력하세요"
                 required
                 disabled={isLoading}
+                data-testid="password-input"
               />
             </div>
 
             {/* 에러 메시지 */}
             {error && (
-              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm" data-testid="login-error">
                 {error}
               </div>
             )}
@@ -192,9 +194,10 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
               type="submit"
               disabled={isLoading || !email || !password || !!emailError}
               className="w-full btn-primary py-3 text-base font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              data-testid="login-button"
             >
               {isLoading ? (
-                <div className="flex items-center justify-center">
+                <div className="flex items-center justify-center" data-testid="login-loading">
                   <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full mr-2"></div>
                   로그인 중...
                 </div>

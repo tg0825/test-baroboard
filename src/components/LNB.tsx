@@ -23,9 +23,10 @@ interface LNBProps {
     error: string | null;
   };
   onPageChange: (page: number) => void;
+  selectedQueryId?: number | null;
 }
 
-const LNB = ({ onQuerySelect, apiData, onPageChange }: LNBProps) => {
+const LNB = ({ onQuerySelect, apiData, onPageChange, selectedQueryId }: LNBProps) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -53,34 +54,39 @@ const queryList = React.useMemo((): QueryItem[] => {
       const data = apiData.data as Record<string, unknown>;
       const results = data.results as Array<Record<string, unknown>>;
       
-      return results.map((item) => ({
-        id: (item.id as number) || 0,
-        name: (item.name as string) || '제목 없음',
-        description: (item.description as string) || null,
-        type: 'Query',
-        user: (item.user as Record<string, unknown>)?.name as string || '알 수 없는 사용자',
-        updatedAt: (item.updated_at as string) || '',
-        runtime: ((item.runtime as number) || 0).toFixed(2) + 's',
-        isFavorite: (item.is_favorite as boolean) || false,
-        isDraft: (item.is_draft as boolean) || false,
-        isArchived: (item.is_archived as boolean) || false,
-      }));
+      return results.map((item) => {
+        return {
+          id: (item.id as number) || 0,
+          name: (item.name as string) || (item.title as string) || '제목 없음',
+          description: (item.description as string) || null,
+          type: 'Query',
+          user: (item.user as Record<string, unknown>)?.name as string || '알 수 없는 사용자',
+          updatedAt: (item.updated_at as string) || '',
+          runtime: ((item.runtime as number) || 0).toFixed(2) + 's',
+          isFavorite: (item.is_favorite as boolean) || false,
+          isDraft: (item.is_draft as boolean) || false,
+          isArchived: (item.is_archived as boolean) || false,
+        };
+      });
     }
 
     // API 데이터가 배열인 경우 (레거시 형태)
     if (apiData?.data && Array.isArray(apiData.data)) {
-      return apiData.data.map((item: Record<string, unknown>) => ({
-        id: (item.id as number) || 0,
-        name: (item.name as string) || '제목 없음',
-        description: (item.description as string) || null,
-        type: 'Query',
-        user: (item.user as string) || '알 수 없는 사용자',
-        updatedAt: (item.updatedAt as string) || '',
-        runtime: ((item.runtime as number) || 0).toFixed(2) + 's',
-        isFavorite: (item.isFavorite as boolean) || false,
-        isDraft: (item.isDraft as boolean) || false,
-        isArchived: (item.isArchived as boolean) || false,
-      }));
+      return apiData.data.map((item: Record<string, unknown>) => {
+        console.log('🔍 API 레거시 아이템 데이터 구조:', item);
+        return {
+          id: (item.id as number) || 0,
+          name: (item.name as string) || (item.title as string) || '제목 없음',
+          description: (item.description as string) || null,
+          type: 'Query',
+          user: (item.user as string) || '알 수 없는 사용자',
+          updatedAt: (item.updatedAt as string) || '',
+          runtime: ((item.runtime as number) || 0).toFixed(2) + 's',
+          isFavorite: (item.isFavorite as boolean) || false,
+          isDraft: (item.isDraft as boolean) || false,
+          isArchived: (item.isArchived as boolean) || false,
+        };
+      });
     }
 
     return [];
@@ -116,7 +122,8 @@ const queryList = React.useMemo((): QueryItem[] => {
   const handleQueryClick = async (query: QueryItem) => {
     // 기본 쿼리 정보를 상위 컴포넌트에 전달
     const data = { 
-      query: query.name, 
+      query: query.name || `쿼리 ID ${query.id}`, // name이 없으면 fallback 
+      name: query.name || `쿼리 ID ${query.id}`, // name 필드 추가
       id: query.id,
       type: query.type,
       description: query.description || '', // null인 경우 빈 문자열로 처리
@@ -149,12 +156,13 @@ const queryList = React.useMemo((): QueryItem[] => {
     <>
       {/* 모바일 햄버거 메뉴 버튼 */}
       {isMobile && (
-        <button
-          onClick={toggleMobileMenu}
-          className="fixed top-[70px] left-5 z-[1001] bg-primary-main text-white border-none rounded-lg p-3 cursor-pointer text-lg shadow-button"
-        >
-          {isMobileMenuOpen ? '✕' : '☰'}
-        </button>
+              <button
+        onClick={toggleMobileMenu}
+        className="fixed top-[70px] left-5 z-[1001] bg-primary-main text-white border-none rounded-lg p-3 cursor-pointer text-lg shadow-button"
+        data-testid="mobile-menu-toggle"
+      >
+        {isMobileMenuOpen ? '✕' : '☰'}
+      </button>
       )}
 
       {/* 모바일 오버레이 */}
@@ -179,6 +187,7 @@ const queryList = React.useMemo((): QueryItem[] => {
           border-r border-border-light mobile-hide-scrollbar
           pt-20 flex flex-col
         `}
+        data-testid="lnb-container"
       >
         <div className="mb-5">
           <h2 className={`
@@ -204,9 +213,9 @@ const queryList = React.useMemo((): QueryItem[] => {
         
         {/* 검색 입력창 */}
         <div className="mb-4">
-          <div className="relative">
-            <input
-              type="text"
+        <div className="relative">
+          <input
+            type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="쿼리 검색..."
@@ -230,14 +239,14 @@ const queryList = React.useMemo((): QueryItem[] => {
               text-text-secondary
             `}>
               {filteredQueryList.length}개의 결과 찾음
-            </div>
-          )}
         </div>
+          )}
+      </div>
 
         <ul className="list-none p-0 m-0 flex-1 overflow-y-auto border border-border-light rounded-lg overflow-hidden">
           {apiData?.loading ? (
             <li className="text-center py-8">
-              <div className="animate-spin w-6 h-6 border-2 border-primary-main border-t-transparent rounded-full mx-auto mb-2"></div>
+            <div className="animate-spin w-6 h-6 border-2 border-primary-main border-t-transparent rounded-full mx-auto mb-2"></div>
               <div className={`
                 ${isMobile ? 'text-sm' : 'text-base'} 
                 text-text-secondary font-medium
@@ -277,23 +286,39 @@ const queryList = React.useMemo((): QueryItem[] => {
                 text-text-muted
               `}>
                 {queryList.length === 0 ? 'API에서 쿼리 데이터를 받아오지 못했습니다' : '다른 키워드로 검색해보세요'}
-              </div>
+          </div>
             </li>
           ) : (
             filteredQueryList.map((query: QueryItem) => {
+              const isSelected = selectedQueryId === query.id;
               return (
                 <li 
                   key={query.id}
                   onClick={() => handleQueryClick(query)}
+                  data-testid={`lnb-item-${query.id}`}
+                  data-query-id={query.id}
                   className={`
-                    p-2 bg-background-main cursor-pointer
+                    p-2 cursor-pointer
                     border-b border-gray-200 last:border-b-0
                     ${isMobile ? 'text-sm' : 'text-base'}
                     transition-all duration-200
-                    hover:bg-primary-pale
+                    ${isSelected 
+                      ? 'bg-primary-main text-white shadow-md hover:bg-primary-dark' 
+                      : 'bg-background-main hover:bg-primary-pale'
+                    }
                     ${query.isArchived ? 'opacity-60' : ''}
                   `}
                 >
+                  {/* 쿼리 ID */}
+                  <div className="mb-1">
+                    <span className={`
+                      text-xs font-mono px-2 py-1 rounded-full
+                      ${isSelected ? 'bg-white bg-opacity-20 text-white' : 'bg-gray-100 text-gray-600'}
+                    `}>
+                      #{query.id}
+                    </span>
+          </div>
+
                   {/* 쿼리 이름, 즐겨찾기, 날짜 */}
                   <div className="flex items-start justify-between mb-1">
                     <div className="flex items-start gap-1 flex-1">
@@ -301,32 +326,41 @@ const queryList = React.useMemo((): QueryItem[] => {
                         font-semibold leading-tight
                         ${isMobile ? 'text-xs' : 'text-sm'}
                         overflow-hidden text-ellipsis
-                        text-text-primary flex-1
+                        ${isSelected ? 'text-white' : 'text-text-primary'} flex-1
                       `}
                       style={{ lineClamp: 1, display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical' }}
                       >
                         {query.name}
                       </div>
                       {query.isFavorite && (
-                        <span className="text-yellow-500 text-xs">⭐</span>
+                        <span className={`text-xs ${isSelected ? 'text-yellow-200' : 'text-yellow-500'}`}>⭐</span>
+                      )}
+                      {isSelected && (
+                        <span className="text-xs text-white">✓</span>
                       )}
                     </div>
                     {query.updatedAt && (
-                      <div className="text-xs text-text-muted leading-none ml-2 flex-shrink-0">
+                      <div className={`text-xs leading-none ml-2 flex-shrink-0 ${
+                        isSelected ? 'text-white text-opacity-80' : 'text-text-muted'
+                      }`}>
                         {query.updatedAt}
                       </div>
                     )}
                   </div>
-
-                  {/* 설명 */}
+                
+                {/* 설명 */}
                   {query.description && (
-                    <div className="text-xs text-text-muted mb-1 line-clamp-1 leading-tight">
+                    <div className={`text-xs mb-1 line-clamp-1 leading-tight ${
+                      isSelected ? 'text-white text-opacity-80' : 'text-text-muted'
+                    }`}>
                       {query.description}
                     </div>
                   )}
 
                   {/* 작성자와 실행시간 */}
-                  <div className="flex items-center justify-between pt-1 text-xs text-text-muted leading-none">
+                  <div className={`flex items-center justify-between pt-1 text-xs leading-none ${
+                    isSelected ? 'text-white text-opacity-80' : 'text-text-muted'
+                  }`}>
                     <span>👤 {query.user}</span>
                     {query.runtime && (
                       <span>⏱️ {query.runtime}</span>
@@ -497,19 +531,6 @@ const queryList = React.useMemo((): QueryItem[] => {
               );
             })()}
             
-            {/* 페이지 정보 */}
-            <div className={`
-              mt-3 text-center
-              ${isMobile ? 'text-xs' : 'text-sm'} 
-              text-text-muted
-            `}>
-              총 {paginationInfo.count}개 중 {(((localCurrentPage || paginationInfo.page) - 1) * paginationInfo.pageSize) + 1}-{Math.min((localCurrentPage || paginationInfo.page) * paginationInfo.pageSize, paginationInfo.count)}번째 표시
-              {loadingPage && (
-                <div className="mt-1 text-primary-main">
-                  <span className="inline-block animate-spin">⟳</span> 페이지 {loadingPage} 로딩 중...
-                </div>
-              )}
-            </div>
           </div>
         )}
       </div>

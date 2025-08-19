@@ -32,7 +32,6 @@ const Footer = () => {
 
       {/* 우측 - 현재 날짜와 시간 */}
       <div className="text-xs text-text-secondary font-medium flex items-center gap-2">
-        <span className="text-text-muted">📅</span>
         <span>{currentDateTime}</span>
       </div>
     </footer>
