@@ -1,6 +1,0 @@
-name = "baroboard"
-compatibility_date = "2025-08-19"
-
-[pages]
-build_output_dir = "./.next"
-exclude = ["**/cache"] 

@@ -15,7 +15,8 @@
     "test:ui": "playwright test --ui",
     "test:report": "playwright show-report",
     "export": "next build",
-    "deploy": "npm run export && firebase deploy"
+    "deploy:s3": "npm run export && aws s3 sync out/ s3://your-bucket-name --delete",
+    "deploy:firebase": "npm run export && firebase deploy"
   },
   "dependencies": {
     "@n8n/chat": "^0.47.0",

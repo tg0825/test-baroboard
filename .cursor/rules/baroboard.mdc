@@ -5,6 +5,9 @@ alwaysApply: false
 ---
 # CURSORRULES.md
 
+## 0. nextjs 랜더링 방식
+- CSR로 한다. (client side rendering)
+
 ## 1. 브랜치 전략
 - `master`: 배포/운영 브랜치 (PR을 통해서만 머지)
 - `feature/*`: 기능 개발 브랜치 (ex. feature/redash-list)
