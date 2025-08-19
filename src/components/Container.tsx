@@ -640,7 +640,11 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
   }, [plainResponse]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="flex-1 flex flex-col h-full mt-16 min-w-0 overflow-hidden relative" data-testid="main-container">
+    <div 
+    style={{
+      paddingTop: '61px'
+    }}
+    className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative" data-testid="main-container">
       <div dangerouslySetInnerHTML={{ __html: '<!-- 대시보드 헤더 영역 -->' }} />
       <div className="border-b border-border-light p-4 bg-background-main">
         <h1 className="text-2xl font-bold text-text-primary" data-testid="dashboard-title">
