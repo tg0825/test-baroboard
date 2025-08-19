@@ -12,12 +12,6 @@ interface QueryPageProps {
   }>;
 }
 
-interface DetailApiResponse {
-  data: string;
-  timestamp: string;
-  type: 'detail' | 'plain';
-}
-
 export default function QueryPage({ params }: QueryPageProps) {
   const router = useRouter();
   const { user, isLoading } = useAuth();

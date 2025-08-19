@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Container from './Container';
 import LNB from './LNB';
 
@@ -35,7 +34,6 @@ interface DashboardProps {
 }
 
 const Dashboard = ({ apiData, onPageChange, initialQueryId }: DashboardProps) => {
-  const router = useRouter();
   const [selectedQuery, setSelectedQuery] = useState<SelectedQuery | null>(null);
 
   // URL에서 추출한 initialQueryId로 즉시 쿼리 선택 (API 데이터 로딩 기다리지 않음)
@@ -76,11 +74,11 @@ const Dashboard = ({ apiData, onPageChange, initialQueryId }: DashboardProps) =>
       
       // 표준 응답 형태 확인
       if (apiDataObj.results && Array.isArray(apiDataObj.results)) {
-        queryFound = apiDataObj.results.find((item: any) => Number(item.id) === Number(initialQueryId));
+        queryFound = apiDataObj.results.find((item: { id: string | number }) => Number(item.id) === Number(initialQueryId));
       }
       // 레거시 응답 형태 확인
       else if (Array.isArray(apiDataObj)) {
-        queryFound = apiDataObj.find((item: any) => Number(item.id) === Number(initialQueryId));
+        queryFound = apiDataObj.find((item: { id: string | number }) => Number(item.id) === Number(initialQueryId));
       }
       
       // 실제 데이터가 있고, 현재와 다른 경우에만 업데이트

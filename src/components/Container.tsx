@@ -25,18 +25,18 @@ interface DetailApiResponse {
 }
 
 interface PlainApiResponse {
-  data: any; // JSON 또는 string
+  data: unknown; // JSON 또는 string
   timestamp: string;
   type: 'detail' | 'plain';
 }
 
 interface TableData {
   columns: Array<{ name: string }>;
-  rows: Array<Record<string, any>>;
+  rows: Array<Record<string, string | number>>;
 }
 
 interface ChartData {
-  data: Array<Record<string, any>>;
+  data: Array<Record<string, string | number>>;
   type: 'bar' | 'line' | 'pie';
   xKey: string;
   yKey: string;
@@ -71,17 +71,29 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
 
 
   // 테이블 데이터 추출 함수
-  const extractTableData = (plainData: any): TableData | null => {
+  const extractTableData = (plainData: unknown): TableData | null => {
     try {
-      // query_result.data 구조 확인
-      if (plainData?.query_result?.data?.columns && plainData?.query_result?.data?.rows) {
+      // 타입 가드를 사용한 query_result.data 구조 확인
+      if (
+        plainData && 
+        typeof plainData === 'object' && 
+        'query_result' in plainData &&
+        plainData.query_result &&
+        typeof plainData.query_result === 'object' &&
+        'data' in plainData.query_result &&
+        plainData.query_result.data &&
+        typeof plainData.query_result.data === 'object' &&
+        'columns' in plainData.query_result.data &&
+        'rows' in plainData.query_result.data
+      ) {
+        const data = plainData.query_result.data as { columns: Array<{ name: string }>; rows: Array<Record<string, string | number>> };
         return {
-          columns: plainData.query_result.data.columns,
-          rows: plainData.query_result.data.rows
+          columns: data.columns,
+          rows: data.rows
         };
       }
       return null;
-    } catch (err) {
+    } catch {
       return null;
     }
   };
@@ -128,13 +140,13 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
     const columnTypes = analyzeDataTypes(tableData);
     
     const numberColumns = Object.entries(columnTypes)
-      .filter(([_, type]) => type === 'number')
+      .filter(([_name, type]) => type === 'number')
       .map(([name]) => name);
     const stringColumns = Object.entries(columnTypes)
-      .filter(([_, type]) => type === 'string')
+      .filter(([_name, type]) => type === 'string')
       .map(([name]) => name);
     const dateColumns = Object.entries(columnTypes)
-      .filter(([_, type]) => type === 'date')
+      .filter(([_name, type]) => type === 'date')
       .map(([name]) => name);
 
     // 차트 생성 조건 확인
@@ -577,7 +589,7 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
             timestamp: new Date().toISOString(),
             type: 'plain'
           });
-        } catch (parseError) {
+        } catch {
           // JSON 파싱 실패시 원본 텍스트로 처리
           setPlainResponse({
             data: jsonData,
@@ -625,7 +637,7 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
         }
       }
     }
-  }, [plainResponse]); // plainResponse 변경 시에만 실행
+  }, [plainResponse]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="flex-1 flex flex-col h-full mt-16 min-w-0 overflow-hidden relative" data-testid="main-container">
