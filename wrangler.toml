@@ -1,0 +1,4 @@
+name = "baroboard"
+
+[pages]
+build_output_dir = "./out"
