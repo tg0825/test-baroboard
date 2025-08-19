@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import Snackbar from './Snackbar';
 
 interface QueryItem {
   id: number;
@@ -10,6 +11,7 @@ interface QueryItem {
   user: string;
   updatedAt: string;
   runtime: string;
+  runtimeValue: number; // 숫자 값으로 runtime 체크용
   isFavorite: boolean;
   isDraft: boolean;
   isArchived: boolean;
@@ -32,6 +34,13 @@ const LNB = ({ onQuerySelect, apiData, onPageChange, selectedQueryId }: LNBProps
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingPage, setLoadingPage] = useState<number | null>(null); // 로딩 중인 페이지
   const [localCurrentPage, setLocalCurrentPage] = useState<number | null>(null); // 로컬 현재 페이지
+  
+  // 스낵바 상태
+  const [snackbar, setSnackbar] = useState({
+    message: '',
+    isVisible: false,
+    type: 'warning' as 'info' | 'warning' | 'error' | 'success'
+  });
 
   // 화면 크기 감지
   useEffect(() => {
@@ -55,6 +64,7 @@ const queryList = React.useMemo((): QueryItem[] => {
       const results = data.results as Array<Record<string, unknown>>;
       
       return results.map((item) => {
+        const runtimeValue = (item.runtime as number) || 0;
         return {
           id: (item.id as number) || 0,
           name: (item.name as string) || (item.title as string) || '제목 없음',
@@ -62,7 +72,8 @@ const queryList = React.useMemo((): QueryItem[] => {
           type: 'Query',
           user: (item.user as Record<string, unknown>)?.name as string || '알 수 없는 사용자',
           updatedAt: (item.updated_at as string) || '',
-          runtime: ((item.runtime as number) || 0).toFixed(2) + 's',
+          runtime: runtimeValue.toFixed(2) + 's',
+          runtimeValue: runtimeValue, // 숫자 값 저장
           isFavorite: (item.is_favorite as boolean) || false,
           isDraft: (item.is_draft as boolean) || false,
           isArchived: (item.is_archived as boolean) || false,
@@ -73,7 +84,7 @@ const queryList = React.useMemo((): QueryItem[] => {
     // API 데이터가 배열인 경우 (레거시 형태)
     if (apiData?.data && Array.isArray(apiData.data)) {
       return apiData.data.map((item: Record<string, unknown>) => {
-        console.log('🔍 API 레거시 아이템 데이터 구조:', item);
+        const runtimeValue = (item.runtime as number) || 0;
         return {
           id: (item.id as number) || 0,
           name: (item.name as string) || (item.title as string) || '제목 없음',
@@ -81,7 +92,8 @@ const queryList = React.useMemo((): QueryItem[] => {
           type: 'Query',
           user: (item.user as string) || '알 수 없는 사용자',
           updatedAt: (item.updatedAt as string) || '',
-          runtime: ((item.runtime as number) || 0).toFixed(2) + 's',
+          runtime: runtimeValue.toFixed(2) + 's',
+          runtimeValue: runtimeValue, // 숫자 값 저장
           isFavorite: (item.isFavorite as boolean) || false,
           isDraft: (item.isDraft as boolean) || false,
           isArchived: (item.isArchived as boolean) || false,
@@ -120,6 +132,16 @@ const queryList = React.useMemo((): QueryItem[] => {
   );
 
   const handleQueryClick = async (query: QueryItem) => {
+    // runtime이 0이면 클릭 방지 및 스낵바 표시
+    if (query.runtimeValue === 0) {
+      setSnackbar({
+        message: '해당 쿼리는 실행 불가 합니다.',
+        isVisible: true,
+        type: 'warning'
+      });
+      return; // 여기서 함수 종료
+    }
+    
     // 기본 쿼리 정보를 상위 컴포넌트에 전달
     const data = { 
       query: query.name || `쿼리 ID ${query.id}`, // name이 없으면 fallback 
@@ -137,6 +159,11 @@ const queryList = React.useMemo((): QueryItem[] => {
     if (isMobile) {
       setIsMobileMenuOpen(false);
     }
+  };
+
+  // 스낵바 닫기 함수
+  const handleSnackbarClose = () => {
+    setSnackbar(prev => ({ ...prev, isVisible: false }));
   };
 
   const toggleMobileMenu = () => {
@@ -291,6 +318,8 @@ const queryList = React.useMemo((): QueryItem[] => {
           ) : (
             filteredQueryList.map((query: QueryItem) => {
               const isSelected = selectedQueryId === query.id;
+              const isDisabled = query.runtimeValue === 0; // runtime이 0이면 비활성화
+              
               return (
                 <li 
                   key={query.id}
@@ -298,13 +327,14 @@ const queryList = React.useMemo((): QueryItem[] => {
                   data-testid={`lnb-item-${query.id}`}
                   data-query-id={query.id}
                   className={`
-                    p-2 cursor-pointer
-                    border-b border-gray-200 last:border-b-0
+                    p-2 border-b border-gray-200 last:border-b-0
                     ${isMobile ? 'text-sm' : 'text-base'}
                     transition-all duration-200
-                    ${isSelected 
-                      ? 'bg-primary-main text-white shadow-md hover:bg-primary-dark' 
-                      : 'bg-background-main hover:bg-primary-pale'
+                    ${isDisabled 
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-50' 
+                      : isSelected 
+                        ? 'bg-primary-main text-white shadow-md hover:bg-primary-dark cursor-pointer' 
+                        : 'bg-background-main hover:bg-primary-pale cursor-pointer'
                     }
                     ${query.isArchived ? 'opacity-60' : ''}
                   `}
@@ -313,7 +343,12 @@ const queryList = React.useMemo((): QueryItem[] => {
                   <div className="mb-1">
                     <span className={`
                       text-xs font-mono px-2 py-1 rounded-full
-                      ${isSelected ? 'bg-white bg-opacity-20 text-white' : 'bg-gray-100 text-gray-600'}
+                      ${isDisabled 
+                        ? 'bg-gray-200 text-gray-400'
+                        : isSelected 
+                          ? 'bg-white bg-opacity-20 text-white' 
+                          : 'bg-gray-100 text-gray-600'
+                      }
                     `}>
                       #{query.id}
                     </span>
@@ -326,22 +361,37 @@ const queryList = React.useMemo((): QueryItem[] => {
                         font-semibold leading-tight
                         ${isMobile ? 'text-xs' : 'text-sm'}
                         overflow-hidden text-ellipsis
-                        ${isSelected ? 'text-white' : 'text-text-primary'} flex-1
+                        ${isDisabled 
+                          ? 'text-gray-400'
+                          : isSelected 
+                            ? 'text-white' 
+                            : 'text-text-primary'
+                        } flex-1
                       `}
                       style={{ lineClamp: 1, display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical' }}
                       >
                         {query.name}
                       </div>
                       {query.isFavorite && (
-                        <span className={`text-xs ${isSelected ? 'text-yellow-200' : 'text-yellow-500'}`}>⭐</span>
+                        <span className={`text-xs ${
+                          isDisabled 
+                            ? 'text-gray-300'
+                            : isSelected 
+                              ? 'text-yellow-200' 
+                              : 'text-yellow-500'
+                        }`}>⭐</span>
                       )}
-                      {isSelected && (
+                      {isSelected && !isDisabled && (
                         <span className="text-xs text-white">✓</span>
                       )}
                     </div>
                     {query.updatedAt && (
                       <div className={`text-xs leading-none ml-2 flex-shrink-0 ${
-                        isSelected ? 'text-white text-opacity-80' : 'text-text-muted'
+                        isDisabled 
+                          ? 'text-gray-400'
+                          : isSelected 
+                            ? 'text-white text-opacity-80' 
+                            : 'text-text-muted'
                       }`}>
                         {query.updatedAt}
                       </div>
@@ -351,7 +401,11 @@ const queryList = React.useMemo((): QueryItem[] => {
                 {/* 설명 */}
                   {query.description && (
                     <div className={`text-xs mb-1 line-clamp-1 leading-tight ${
-                      isSelected ? 'text-white text-opacity-80' : 'text-text-muted'
+                      isDisabled
+                        ? 'text-gray-400'
+                        : isSelected 
+                          ? 'text-white text-opacity-80' 
+                          : 'text-text-muted'
                     }`}>
                       {query.description}
                     </div>
@@ -359,11 +413,17 @@ const queryList = React.useMemo((): QueryItem[] => {
 
                   {/* 작성자와 실행시간 */}
                   <div className={`flex items-center justify-between pt-1 text-xs leading-none ${
-                    isSelected ? 'text-white text-opacity-80' : 'text-text-muted'
+                    isDisabled
+                      ? 'text-gray-400'
+                      : isSelected 
+                        ? 'text-white text-opacity-80' 
+                        : 'text-text-muted'
                   }`}>
                     <span>👤 {query.user}</span>
                     {query.runtime && (
-                      <span>⏱️ {query.runtime}</span>
+                      <span className={isDisabled ? 'text-red-400' : ''}>
+                        ⏱️ {query.runtime}
+                      </span>
                     )}
                   </div>
                 </li>
@@ -535,7 +595,14 @@ const queryList = React.useMemo((): QueryItem[] => {
         )}
       </div>
 
-
+      {/* 스낵바 */}
+      <Snackbar 
+        message={snackbar.message}
+        isVisible={snackbar.isVisible}
+        onClose={handleSnackbarClose}
+        type={snackbar.type}
+        duration={3000}
+      />
     </>
   );
 };
