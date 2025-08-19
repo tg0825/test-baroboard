@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
+import ColumnContextMenu from './ColumnContextMenu';
+import ColumnSettingsModal from './ColumnSettingsModal';
 import { 
   BarChart, 
   Bar, 
@@ -69,6 +71,66 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
   const [selectedXColumn, setSelectedXColumn] = useState<string | null>(null);
   const [selectedYColumn, setSelectedYColumn] = useState<string | null>(null);
 
+  // 컬럼 숨기기/보이기 관련 상태
+  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
+  const [contextMenu, setContextMenu] = useState<{
+    isVisible: boolean;
+    position: { x: number; y: number };
+    columnName: string;
+  }>({
+    isVisible: false,
+    position: { x: 0, y: 0 },
+    columnName: '',
+  });
+  const [isColumnSettingsVisible, setIsColumnSettingsVisible] = useState(false);
+
+  // 컬럼 숨기기/보이기 핸들러 함수들
+  const handleColumnRightClick = (e: React.MouseEvent, columnName: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    setContextMenu({
+      isVisible: true,
+      position: { x: e.clientX, y: e.clientY },
+      columnName,
+    });
+  };
+
+  const handleHideColumn = (columnName: string) => {
+    setHiddenColumns(prev => new Set([...prev, columnName]));
+    
+    // 숨겨진 컬럼이 현재 선택된 X/Y축이면 선택 해제
+    if (selectedXColumn === columnName) {
+      setSelectedXColumn(null);
+    }
+    if (selectedYColumn === columnName) {
+      setSelectedYColumn(null);
+    }
+  };
+
+  const handleToggleColumn = (columnName: string) => {
+    setHiddenColumns(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(columnName)) {
+        newSet.delete(columnName);
+      } else {
+        newSet.add(columnName);
+        
+        // 숨겨진 컬럼이 현재 선택된 X/Y축이면 선택 해제
+        if (selectedXColumn === columnName) {
+          setSelectedXColumn(null);
+        }
+        if (selectedYColumn === columnName) {
+          setSelectedYColumn(null);
+        }
+      }
+      return newSet;
+    });
+  };
+
+  const closeContextMenu = () => {
+    setContextMenu(prev => ({ ...prev, isVisible: false }));
+  };
 
   // 테이블 데이터 추출 함수
   const extractTableData = (plainData: unknown): TableData | null => {
@@ -376,6 +438,24 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
       );
     }
 
+    // 보이는 컬럼만 필터링
+    const visibleColumns = tableData.columns.filter(col => !hiddenColumns.has(col.name));
+    const allColumnNames = tableData.columns.map(col => col.name);
+
+    if (visibleColumns.length === 0) {
+      return (
+        <div className="text-center py-4 text-text-secondary">
+          <p className="mb-2">모든 컬럼이 숨겨져 있습니다.</p>
+          <button
+            onClick={() => setIsColumnSettingsVisible(true)}
+            className="px-3 py-1 text-sm bg-primary-main text-white rounded hover:bg-primary-dark transition-colors"
+          >
+            컬럼 설정
+          </button>
+        </div>
+      );
+    }
+
     // 페이지네이션 계산
     const totalPages = Math.ceil(tableData.rows.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -403,17 +483,36 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
       <div data-testid="table-container">
         {/* 테이블 상단 정보 */}
         <div className="flex items-center justify-between mb-4">
-          <div className="text-sm text-text-muted">
-            총 <span className="font-semibold text-text-primary">{tableData.rows.length}</span>개 행 중{' '}
-            <span className="font-semibold text-text-primary">
-              {startIndex + 1}-{Math.min(endIndex, tableData.rows.length)}
-            </span>개 표시
-          </div>
-          {totalPages > 1 && (
+          <div className="flex items-center gap-4">
             <div className="text-sm text-text-muted">
-              페이지 {currentPage} / {totalPages}
+              총 <span className="font-semibold text-text-primary">{tableData.rows.length}</span>개 행 중{' '}
+              <span className="font-semibold text-text-primary">
+                {startIndex + 1}-{Math.min(endIndex, tableData.rows.length)}
+              </span>개 표시
             </div>
-          )}
+            {hiddenColumns.size > 0 && (
+              <div className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
+                {hiddenColumns.size}개 컬럼 숨김
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsColumnSettingsVisible(true)}
+              className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors flex items-center gap-1"
+              title="컬럼 설정"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
+              </svg>
+              컬럼 설정
+            </button>
+            {totalPages > 1 && (
+              <div className="text-sm text-text-muted">
+                페이지 {currentPage} / {totalPages}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* 테이블 */}
@@ -425,7 +524,7 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
                   <th className="px-4 py-3 text-left text-sm font-semibold text-text-primary border-b border-border-light w-12">
                     #
                   </th>
-                  {tableData.columns.map((column, index) => {
+                  {visibleColumns.map((column, index) => {
                     const columnTypes = analyzeDataTypes(tableData);
                     const isNumber = columnTypes[column.name] === 'number';
                     const isSelectedX = selectedXColumn === column.name;
@@ -435,6 +534,7 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
                       <th
                         key={index}
                         onClick={(e) => handleColumnClick(column.name, e.shiftKey)}
+                        onContextMenu={(e) => handleColumnRightClick(e, column.name)}
                         className={`px-4 py-3 text-left text-sm font-semibold border-b border-border-light cursor-pointer transition-colors hover:bg-gray-200 ${
                           isSelectedX
                             ? 'bg-blue-500 text-white hover:bg-blue-600'
@@ -467,7 +567,7 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
                       <td className="px-4 py-3 text-sm text-text-muted border-b border-border-light w-12">
                         {globalRowIndex}
                       </td>
-                      {tableData.columns.map((column, colIndex) => (
+                      {visibleColumns.map((column, colIndex) => (
                         <td
                           key={colIndex}
                           className="px-4 py-3 text-sm text-text-primary border-b border-border-light"
@@ -510,11 +610,13 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // 새로운 쿼리가 선택되면 페이지를 1로 리셋하고 축 선택 초기화
+  // 새로운 쿼리가 선택되면 페이지를 1로 리셋하고 축 선택 초기화, 숨겨진 컬럼 초기화
   useEffect(() => {
     setCurrentPage(1);
     setSelectedXColumn(null);
     setSelectedYColumn(null);
+    setHiddenColumns(new Set()); // 숨겨진 컬럼들 초기화
+    setContextMenu(prev => ({ ...prev, isVisible: false })); // 컨텍스트 메뉴 닫기
   }, [selectedQuery?.id]);
 
   // API 호출 함수
@@ -863,6 +965,27 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
           </div>
           </>
         )}
+
+        {/* 컨텍스트 메뉴 */}
+        <ColumnContextMenu
+          isVisible={contextMenu.isVisible}
+          position={contextMenu.position}
+          columnName={contextMenu.columnName}
+          onHideColumn={handleHideColumn}
+          onClose={closeContextMenu}
+        />
+
+        {/* 컬럼 설정 모달 */}
+        <ColumnSettingsModal
+          isVisible={isColumnSettingsVisible}
+          allColumns={(() => {
+            const tableData = plainResponse ? extractTableData(plainResponse.data) : null;
+            return tableData ? tableData.columns.map(col => col.name) : [];
+          })()}
+          hiddenColumns={hiddenColumns}
+          onToggleColumn={handleToggleColumn}
+          onClose={() => setIsColumnSettingsVisible(false)}
+        />
       </div>
     </div>
   );
