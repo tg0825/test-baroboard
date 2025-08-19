@@ -6,7 +6,17 @@ const nextConfig = {
   skipTrailingSlashRedirect: true,    // 슬래시 리다이렉트 스킵
   images: {
     unoptimized: true                 // 정적 호스팅에서는 이미지 최적화 불가
-  }
+  },
+  
+  // 개발 서버에서 동적 라우팅 지원
+  async rewrites() {
+    return [
+      {
+        source: '/query/:id',
+        destination: '/',
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig; 
