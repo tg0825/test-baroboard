@@ -1,14 +1,16 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { createChat } from '@n8n/chat';
 
 const FloatingChatbot = () => {
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [chatContainer, setChatContainer] = useState<HTMLDivElement | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
-  // 화면 크기 감지
+  // 화면 크기 감지 (Hook은 항상 호출되어야 함)
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -45,6 +47,11 @@ const FloatingChatbot = () => {
   const toggleChat = () => {
     setIsOpen(!isOpen);
   };
+
+  // 팝업 페이지에서는 채팅 말풍선 숨김 (모든 Hook 호출 후에 체크)
+  if (pathname === '/dashboard-popup') {
+    return null;
+  }
 
   return (
     <>

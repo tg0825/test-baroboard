@@ -1,20 +1,21 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
 const GNB = () => {
   const [isMobile, setIsMobile] = useState(false);
   const { user, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   // 로고 클릭시 홈페이지로 이동
   const handleLogoClick = () => {
     router.push('/');
   };
 
-  // 화면 크기 감지
+  // 화면 크기 감지 (항상 호출되어야 함)
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -25,6 +26,11 @@ const GNB = () => {
     
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // 팝업 페이지에서는 GNB 숨김 (Hook 호출 이후에 체크)
+  if (pathname === '/dashboard-popup') {
+    return null;
+  }
 
   return (
     <>

@@ -23,6 +23,6 @@
   - text: 로그인 요청이 n8n 워크플로우로 전송됩니다
 - paragraph: © 2024 AIniti4 Team. All rights reserved.
 - button "💬"
-- contentinfo: 2025-08-19 11:27
+- contentinfo: 2025-08-20 17:21
 - alert: 로그인 - BaroBoard
 ```

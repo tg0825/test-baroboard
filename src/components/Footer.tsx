@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 
 const Footer = () => {
+  const pathname = usePathname();
   const [currentDateTime, setCurrentDateTime] = useState('');
 
   useEffect(() => {
@@ -22,6 +24,11 @@ const Footer = () => {
 
     return () => clearInterval(interval);
   }, []);
+
+  // 팝업 페이지에서는 Footer 숨김 (모든 Hook 호출 후에 체크)
+  if (pathname === '/dashboard-popup') {
+    return null;
+  }
 
   return (
     <footer className="fixed bottom-0 left-0 right-0 h-8 bg-background-soft border-t border-border-light flex items-center justify-between px-4 md:px-6 z-[1001] backdrop-blur-sm bg-opacity-95">

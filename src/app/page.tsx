@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Dashboard from "@/components/Dashboard";
 import { useAuth } from '@/contexts/AuthContext';
 import { useApiData } from '@/hooks/useApiData';
+import { fetchMainPageData } from '@/utils/mainApiUtils';
 
 export default function Home() {
   const router = useRouter();
@@ -61,72 +62,34 @@ export default function Home() {
     }
   }, [user, isLoading, router]);
 
-  // 페이지네이션을 위한 API 호출 함수
+  // API 데이터 로드 함수
   const fetchPageData = useCallback(async (page: number = 1) => {
     if (!user?.isLoggedIn) return;
 
     try {
       apiData.setLoading(true);
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
-      
-      // 로컬스토리지에서 API 키 가져오기
-      const apiKey = localStorage.getItem('baroboard_api_key');
-      
-      // 헤더 구성
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(apiKey && { 'Authorization': `Key ${apiKey}` }), // API 키가 있으면 헤더에 포함
-      };
-      
-      // page 파라미터를 포함한 리스트 조회
-      const response = await fetch(`https://tg0825.app.n8n.cloud/webhook/54e868d6-9698-40e4-bcd7-331c40dff4b4?email=${encodeURIComponent(user?.email || '')}&session=${encodeURIComponent(user?.session || '')}&action=main_page_init&page=${page}`, {
-        method: 'GET',
-        headers,
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        const result = await response.json();
-        
-        // API 응답 데이터를 전역 상태에 저장
-        apiData.setMainPageData(result);
-      } else {
-        apiData.setError(`API 호출 실패: ${response.status}`);
-      }
+      const result = await fetchMainPageData(page, user.email, user.session);
+      apiData.setMainPageData(result);
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        apiData.setError('API 요청 시간이 초과되었습니다.');
-      } else {
-        apiData.setError('네트워크 연결 오류가 발생했습니다.');
-      }
+      apiData.setError(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.');
     }
-  }, [user, apiData]);
+  }, [user?.isLoggedIn, user?.email, user?.session, apiData]);
 
-  // 메인 페이지 진입 시 초기 API 호출 (단 한 번만)
+  // 초기 데이터 로드
   useEffect(() => {
     const initializeMainPage = async () => {
-      // 중복 요청 방지: 이미 초기화했거나 로딩 중이면 건너뛰기
       if (hasInitialized || isLoading || !user?.isLoggedIn) {
-        if (!isLoading) {
-          setIsInitializing(false);
-        }
+        if (!isLoading) setIsInitializing(false);
         return;
       }
 
-      setHasInitialized(true); // 즉시 플래그 설정하여 중복 요청 방지
+      setHasInitialized(true);
       setIsInitializing(false);
-      
-      // 첫 페이지 데이터 로딩 (재시도 방지를 위해 한 번만 호출)
       await fetchPageData(1);
     };
 
     initializeMainPage();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, isLoading, hasInitialized]); // fetchPageData 의존성 제거로 API 재시도 방지
+  }, [user?.isLoggedIn, isLoading, hasInitialized, fetchPageData]);
 
   if (isLoading || isInitializing) {
     return (

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Container from './Container';
 import LNB from './LNB';
+import { createQueryFromId, updateBrowserHistory, dispatchRouteChangeEvent, findQueryInApiData } from '@/utils/routeUtils';
 
 interface SelectedQuery {
   id: number;
@@ -36,132 +37,75 @@ interface DashboardProps {
 const Dashboard = ({ apiData, onPageChange, initialQueryId }: DashboardProps) => {
   const [selectedQuery, setSelectedQuery] = useState<SelectedQuery | null>(null);
   
-  // 디버깅 로그
-  console.log('🏠 Dashboard loaded with initialQueryId:', initialQueryId);
 
-  // URL에서 추출한 initialQueryId로 즉시 쿼리 선택 (API 데이터 로딩 기다리지 않음)
+  // 초기 쿼리 ID 처리
   useEffect(() => {
     if (initialQueryId && !selectedQuery) {
-      // 즉시 해당 ID로 쿼리 선택 (API 데이터 없어도 상관없음)
+      const queryData = createQueryFromId(initialQueryId);
       const query = {
-        id: initialQueryId,
-        query: `쿼리 ID ${initialQueryId}`,
-        name: `쿼리 ID ${initialQueryId}`,
-        type: 'Query',
-        description: '',
+        ...queryData,
+        query: queryData.name,
+        type: queryData.type || 'Query',
+        description: queryData.description || '',
         timestamp: new Date().toISOString()
       };
       
       setSelectedQuery(query);
-      
-      // URL 상태도 동기화
-      window.history.replaceState(
-        { queryId: query.id, queryName: query.name },
-        '',
-        `/query/${query.id}`
-      );
-      
-      // 커스텀 이벤트 발생 (초기 로드시에만)
-      window.dispatchEvent(new CustomEvent('baroboard-route-change', {
-        detail: { queryId: query.id }
-      }));
+      updateBrowserHistory(queryData, true);
+      dispatchRouteChangeEvent(query.id);
     }
   }, [initialQueryId, selectedQuery]);
 
-  // API 데이터 로드 완료 후 실제 쿼리 데이터로 업데이트 (선택사항)
+  // API 데이터 로드 후 실제 쿼리 데이터로 업데이트
   useEffect(() => {
     if (initialQueryId && selectedQuery && apiData.data && !apiData.loading) {
-      // 이미 실제 데이터로 업데이트된 경우 스킵 (무한 루프 방지)
-      if (selectedQuery.name !== `쿼리 ID ${initialQueryId}`) {
-        return;
-      }
+      if (selectedQuery.name !== `쿼리 ID ${initialQueryId}`) return;
       
-      // API 데이터에서 해당 ID의 실제 쿼리 정보 찾기
-      const apiDataObj = apiData.data as Record<string, unknown>;
-      let queryFound = null;
-      
-      // 표준 응답 형태 확인
-      if (apiDataObj.results && Array.isArray(apiDataObj.results)) {
-        queryFound = apiDataObj.results.find((item: { id: string | number }) => Number(item.id) === Number(initialQueryId));
-      }
-      // 레거시 응답 형태 확인
-      else if (Array.isArray(apiDataObj)) {
-        queryFound = apiDataObj.find((item: { id: string | number }) => Number(item.id) === Number(initialQueryId));
-      }
-      
-      // 실제 데이터가 있고, 현재와 다른 경우에만 업데이트
-      if (queryFound && queryFound.name && queryFound.name !== selectedQuery.name) {
+      const queryData = findQueryInApiData(apiData.data, initialQueryId);
+      if (queryData && queryData.name !== selectedQuery.name) {
         const updatedQuery = {
-          id: queryFound.id,
-          query: queryFound.name,
-          name: queryFound.name,
-          type: queryFound.type || 'Query',
-          description: queryFound.description || '',
+          ...queryData,
+          query: queryData.name,
+          type: queryData.type || 'Query',
+          description: queryData.description || '',
           timestamp: new Date().toISOString()
         };
         
         setSelectedQuery(updatedQuery);
-        
-        // URL 상태도 업데이트
-        window.history.replaceState(
-          { queryId: updatedQuery.id, queryName: updatedQuery.name },
-          '',
-          `/query/${updatedQuery.id}`
-        );
-        
-        // 이름이 변경된 경우에만 커스텀 이벤트 발생 (중복 방지)
-        if (queryFound.name !== selectedQuery.name) {
-          window.dispatchEvent(new CustomEvent('baroboard-route-change', {
-            detail: { queryId: updatedQuery.id }
-          }));
-        }
+        updateBrowserHistory(queryData, true);
+        dispatchRouteChangeEvent(updatedQuery.id);
       }
     }
-  }, [initialQueryId, apiData.data, apiData.loading]); // selectedQuery 의존성 제거
+  }, [initialQueryId, apiData.data, apiData.loading, selectedQuery]);
 
   const handleQuerySelect = (queryData: Record<string, unknown>) => {
     const query = queryData as unknown as SelectedQuery;
     setSelectedQuery(query);
     
-    // SPA 방식으로 URL만 변경 (페이지 리로드 없음)
-    window.history.pushState(
-      { queryId: query.id, queryName: query.query },
-      '',
-      `/query/${query.id}`
-    );
-    
-    // 커스텀 이벤트 발생시켜서 page.tsx에서 URL 변경 감지
-    window.dispatchEvent(new CustomEvent('baroboard-route-change', {
-      detail: { queryId: query.id }
-    }));
+    const queryInfo = { id: query.id, name: query.query, type: query.type, description: query.description };
+    updateBrowserHistory(queryInfo);
+    dispatchRouteChangeEvent(query.id);
   };
 
-  // 페이지 제목은 Container.tsx에서 상세 API 응답 기반으로 설정됨
-
-  // 브라우저 뒤로가기/앞으로가기 대응
+  // 브라우저 뒤로가기/앞으로가기 처리
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
-      if (event.state && event.state.queryId) {
-        // 이전에 선택된 쿼리로 복원
+      if (event.state?.queryId) {
+        const queryData = createQueryFromId(event.state.queryId, event.state.queryName);
         setSelectedQuery({
-          id: event.state.queryId,
-          query: event.state.queryName || `쿼리 ID ${event.state.queryId}`,
-          name: event.state.queryName || `쿼리 ID ${event.state.queryId}`,
-          type: 'Query',
-          description: '',
+          ...queryData,
+          query: queryData.name,
+          type: queryData.type || 'Query',
+          description: queryData.description || '',
           timestamp: new Date().toISOString()
         });
       } else {
-        // 메인 페이지로 돌아감
         setSelectedQuery(null);
       }
     };
 
     window.addEventListener('popstate', handlePopState);
-    
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   return (

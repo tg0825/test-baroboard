@@ -2,47 +2,18 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
+import html2canvas from 'html2canvas';
 import ColumnContextMenu from './ColumnContextMenu';
 import ColumnSettingsModal from './ColumnSettingsModal';
-import { 
-  BarChart, 
-  Bar, 
-  LineChart, 
-  Line, 
-  PieChart, 
-  Pie, 
-  Cell, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Legend, 
-  ResponsiveContainer 
-} from 'recharts';
+import ChartRenderer from './ChartRenderer';
+import DataTable from './DataTable';
+import { extractTableData, analyzeDataTypes, generateChartData } from '@/utils/dataUtils';
+import { callPreApi, callDetailApi, callPlainApi } from '@/utils/apiUtils';
 
-interface DetailApiResponse {
-  data: string;
+interface ApiResponse {
+  data: string | unknown;
   timestamp: string;
   type: 'detail' | 'plain';
-}
-
-interface PlainApiResponse {
-  data: unknown; // JSON 또는 string
-  timestamp: string;
-  type: 'detail' | 'plain';
-}
-
-interface TableData {
-  columns: Array<{ name: string }>;
-  rows: Array<Record<string, string | number>>;
-}
-
-interface ChartData {
-  data: Array<Record<string, string | number>>;
-  type: 'bar' | 'line' | 'pie';
-  xKey: string;
-  yKey: string;
-  title?: string;
 }
 
 interface SelectedQuery {
@@ -61,8 +32,8 @@ interface ContainerProps {
 
 const Container = ({ selectedQuery, apiError }: ContainerProps) => {
   const [isMobile, setIsMobile] = useState(false);
-  const [detailResponse, setDetailResponse] = useState<DetailApiResponse | null>(null);
-  const [plainResponse, setPlainResponse] = useState<PlainApiResponse | null>(null);
+  const [detailResponse, setDetailResponse] = useState<ApiResponse | null>(null);
+  const [plainResponse, setPlainResponse] = useState<ApiResponse | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [isLoadingPlain, setIsLoadingPlain] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,8 +41,6 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
   const [itemsPerPage] = useState(50);
   const [selectedXColumn, setSelectedXColumn] = useState<string | null>(null);
   const [selectedYColumn, setSelectedYColumn] = useState<string | null>(null);
-
-  // 컬럼 숨기기/보이기 관련 상태
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [contextMenu, setContextMenu] = useState<{
     isVisible: boolean;
@@ -83,15 +52,12 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
     columnName: '',
   });
   const [isColumnSettingsVisible, setIsColumnSettingsVisible] = useState(false);
-
-  // API에서 가져온 쿼리 제목 (pre API의 body.name)
   const [apiQueryTitle, setApiQueryTitle] = useState<string | null>(null);
 
-  // 컬럼 숨기기/보이기 핸들러 함수들
+  // 이벤트 핸들러들
   const handleColumnRightClick = (e: React.MouseEvent, columnName: string) => {
     e.preventDefault();
     e.stopPropagation();
-    
     setContextMenu({
       isVisible: true,
       position: { x: e.clientX, y: e.clientY },
@@ -101,14 +67,8 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
 
   const handleHideColumn = (columnName: string) => {
     setHiddenColumns(prev => new Set([...prev, columnName]));
-    
-    // 숨겨진 컬럼이 현재 선택된 X/Y축이면 선택 해제
-    if (selectedXColumn === columnName) {
-      setSelectedXColumn(null);
-    }
-    if (selectedYColumn === columnName) {
-      setSelectedYColumn(null);
-    }
+    if (selectedXColumn === columnName) setSelectedXColumn(null);
+    if (selectedYColumn === columnName) setSelectedYColumn(null);
   };
 
   const handleToggleColumn = (columnName: string) => {
@@ -118,499 +78,153 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
         newSet.delete(columnName);
       } else {
         newSet.add(columnName);
-        
-        // 숨겨진 컬럼이 현재 선택된 X/Y축이면 선택 해제
-        if (selectedXColumn === columnName) {
-          setSelectedXColumn(null);
-        }
-        if (selectedYColumn === columnName) {
-          setSelectedYColumn(null);
-        }
+        if (selectedXColumn === columnName) setSelectedXColumn(null);
+        if (selectedYColumn === columnName) setSelectedYColumn(null);
       }
       return newSet;
     });
+  };
+
+  const handleColumnClick = (columnName: string, isShiftClick: boolean) => {
+    const tableData = plainResponse ? extractTableData(plainResponse.data) : null;
+    if (!tableData) return;
+    
+    if (isShiftClick) {
+      const columnTypes = analyzeDataTypes(tableData);
+      if (columnTypes[columnName] === 'number') {
+        setSelectedYColumn(columnName === selectedYColumn ? null : columnName);
+      }
+    } else {
+      setSelectedXColumn(columnName === selectedXColumn ? null : columnName);
+    }
   };
 
   const closeContextMenu = () => {
     setContextMenu(prev => ({ ...prev, isVisible: false }));
   };
 
-  // 제목 추출 함수 (pre API의 body.name 우선 사용)
-  const extractQueryTitle = (): string | null => {
-    // pre API에서 가져온 제목이 있으면 우선 사용
-    if (apiQueryTitle) {
-      return apiQueryTitle;
-    }
-    
-    // fallback: selectedQuery에서 가져오기
-    return selectedQuery?.name || null;
-  };
+  const extractQueryTitle = useCallback((): string | null => {
+    return apiQueryTitle || selectedQuery?.name || null;
+  }, [apiQueryTitle, selectedQuery?.name]);
 
-  // 테이블 데이터 추출 함수
-  const extractTableData = (plainData: unknown): TableData | null => {
+  // 팝업으로 대시보드 열기 (태블릿 사이즈: 768x1024)
+  const handleOpenPopup = useCallback(() => {
+    if (!selectedQuery) return;
+    
+    const popupUrl = `/dashboard-popup?queryId=${selectedQuery.id}`;
+    const popupFeatures = 'width=768,height=1024,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
+    
+    window.open(popupUrl, 'dashboard-popup', popupFeatures);
+  }, [selectedQuery]);
+
+  // 대시보드 캡쳐 함수
+  const handleCapture = useCallback(async () => {
+    if (!selectedQuery) return;
+
     try {
-      // 타입 가드를 사용한 query_result.data 구조 확인
-      if (
-        plainData && 
-        typeof plainData === 'object' && 
-        'query_result' in plainData &&
-        plainData.query_result &&
-        typeof plainData.query_result === 'object' &&
-        'data' in plainData.query_result &&
-        plainData.query_result.data &&
-        typeof plainData.query_result.data === 'object' &&
-        'columns' in plainData.query_result.data &&
-        'rows' in plainData.query_result.data
-      ) {
-        const data = plainData.query_result.data as { columns: Array<{ name: string }>; rows: Array<Record<string, string | number>> };
-        return {
-          columns: data.columns,
-          rows: data.rows
-        };
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  };
-
-  // 데이터 타입 분석 함수
-  const analyzeDataTypes = (tableData: TableData) => {
-    const columnTypes: Record<string, 'number' | 'string' | 'date'> = {};
-    
-    tableData.columns.forEach(column => {
-      const sampleValues = tableData.rows
-        .slice(0, Math.min(10, tableData.rows.length)) // 처음 10개 행만 샘플링
-        .map(row => row[column.name])
-        .filter(val => val !== null && val !== undefined);
-
-      if (sampleValues.length === 0) {
-        columnTypes[column.name] = 'string';
+      // 캡쳐할 영역 찾기 (대시보드 컨테이너)
+      const dashboardElement = document.querySelector('[data-testid="main-container"]') as HTMLElement;
+      
+      if (!dashboardElement) {
+        alert('캡쳐할 영역을 찾을 수 없습니다.');
         return;
       }
 
-      // 숫자 타입 확인
-      const isNumeric = sampleValues.every(val => 
-        !isNaN(Number(val)) && isFinite(Number(val))
-      );
+      // 로딩 상태 표시
+      const loadingToast = document.createElement('div');
+      loadingToast.innerHTML = `
+        <div style="
+          position: fixed; 
+          top: 20px; 
+          right: 20px; 
+          z-index: 9999; 
+          background: #333; 
+          color: white; 
+          padding: 12px 16px; 
+          border-radius: 8px; 
+          font-size: 14px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        ">
+          <div style="
+            width: 16px; 
+            height: 16px; 
+            border: 2px solid #fff; 
+            border-top: 2px solid transparent; 
+            border-radius: 50%; 
+            animation: spin 1s linear infinite;
+          "></div>
+          대시보드 캡쳐 중...
+        </div>
+        <style>
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        </style>
+      `;
+      document.body.appendChild(loadingToast);
 
-      // 날짜 타입 확인 (간단한 패턴)
-      const isDate = sampleValues.every(val => 
-        typeof val === 'string' && !isNaN(Date.parse(val))
-      );
+      // 캡쳐 옵션
+      const canvas = await html2canvas(dashboardElement, {
+        useCORS: true,
+        allowTaint: true,
+        height: dashboardElement.scrollHeight,
+        width: dashboardElement.scrollWidth,
+      });
 
-      if (isNumeric) {
-        columnTypes[column.name] = 'number';
-      } else if (isDate) {
-        columnTypes[column.name] = 'date';
-      } else {
-        columnTypes[column.name] = 'string';
-      }
-    });
+      // 로딩 토스트 제거
+      document.body.removeChild(loadingToast);
 
-    return columnTypes;
-  };
+      // 캡쳐된 이미지를 다운로드
+      const queryTitle = extractQueryTitle() || 'dashboard';
+      const queryId = selectedQuery.id;
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+      const filename = `${queryTitle}_${queryId}_${timestamp}.png`;
 
-  // 차트 데이터 생성 함수
-  const generateChartData = (tableData: TableData): ChartData | null => {
-    const columnTypes = analyzeDataTypes(tableData);
-    
-    const numberColumns = Object.entries(columnTypes)
-      .filter(([_name, type]) => type === 'number')
-      .map(([name]) => name);
-    const stringColumns = Object.entries(columnTypes)
-      .filter(([_name, type]) => type === 'string')
-      .map(([name]) => name);
-    const dateColumns = Object.entries(columnTypes)
-      .filter(([_name, type]) => type === 'date')
-      .map(([name]) => name);
-
-    // 차트 생성 조건 확인
-    if (numberColumns.length === 0) return null;
-
-    let xKey = '';
-    let yKey = numberColumns[0];
-    let chartType: 'bar' | 'line' | 'pie' = 'bar';
-
-    // Y축 결정 (사용자 선택이 있으면 우선 사용, 숫자 컬럼만 가능)
-    if (selectedYColumn && numberColumns.includes(selectedYColumn)) {
-      yKey = selectedYColumn;
-    } else {
-      yKey = numberColumns[0];
-    }
-
-    // X축 결정 (사용자 선택이 있으면 우선 사용)
-    if (selectedXColumn && tableData.columns.some(col => col.name === selectedXColumn)) {
-      xKey = selectedXColumn;
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = canvas.toDataURL('image/png');
       
-      // 선택된 X축 타입에 따라 차트 타입 결정
-      const selectedColumnType = columnTypes[selectedXColumn];
-      if (selectedColumnType === 'date') {
-        chartType = 'line';
-      } else if (selectedColumnType === 'string') {
-        const uniqueValues = new Set(tableData.rows.map(row => row[xKey])).size;
-        chartType = uniqueValues <= 7 ? 'pie' : 'bar'; // 8개 이상이면 막대 그래프
-      } else {
-        chartType = 'bar';
-      }
-    } else {
-      // 기본 자동 선택 로직
-      if (dateColumns.length > 0) {
-        xKey = dateColumns[0];
-        chartType = 'line';
-      } else if (stringColumns.length > 0) {
-        xKey = stringColumns[0];
-        const uniqueValues = new Set(tableData.rows.map(row => row[xKey])).size;
-        chartType = uniqueValues <= 7 ? 'pie' : 'bar'; // 8개 이상이면 막대 그래프
-      } else {
-        xKey = tableData.columns[0].name;
-      }
-    }
+      // 다운로드 실행
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
-    return {
-      data: tableData.rows,
-      type: chartType,
-      xKey,
-      yKey,
-      title: `차트, 그래프`
-    };
-  };
-
-  // 차트 색상 팔레트
-  const CHART_COLORS = [
-    '#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff7f', 
-    '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7'
-  ];
-
-  // 차트 렌더러 컴포넌트
-  const ChartRenderer = ({ chartData }: { chartData: ChartData }) => {
-    const renderChart = (): React.ReactElement => {
-      switch (chartData.type) {
-        case 'bar':
-          return (
-            <BarChart data={chartData.data}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey={chartData.xKey} />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey={chartData.yKey} fill={CHART_COLORS[0]} />
-            </BarChart>
-          );
-
-        case 'line':
-          return (
-            <LineChart data={chartData.data}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey={chartData.xKey} />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line 
-                type="monotone" 
-                dataKey={chartData.yKey} 
-                stroke={CHART_COLORS[0]} 
-                strokeWidth={2}
-              />
-            </LineChart>
-          );
-
-        case 'pie':
-          return (
-            <PieChart>
-              <Pie
-                data={chartData.data}
-                dataKey={chartData.yKey}
-                nameKey={chartData.xKey}
-                cx="50%"
-                cy="50%"
-                outerRadius={120}
-                label={({ name, value }) => `${name}: ${value}`}
-              >
-                {chartData.data.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          );
-
-        default:
-          return <div>지원하지 않는 차트 타입입니다.</div>;
-      }
-    };
-
-    return (
-      <div className="w-full mb-8" data-testid="chart-renderer">
-        <div className="mb-4">
-          <h3 className="text-lg font-semibold text-text-primary mb-2">
-            📊 {chartData.title}
-          </h3>
-          <div className="text-sm text-text-muted">
-            {chartData.type === 'bar' && '막대 차트'}
-            {chartData.type === 'line' && '선 차트'}
-            {chartData.type === 'pie' && '파이 차트'}
-          </div>
+      // 성공 알림
+      const successToast = document.createElement('div');
+      successToast.innerHTML = `
+        <div style="
+          position: fixed; 
+          top: 20px; 
+          right: 20px; 
+          z-index: 9999; 
+          background: #22c55e; 
+          color: white; 
+          padding: 12px 16px; 
+          border-radius: 8px; 
+          font-size: 14px;
+        ">
+          ✅ 대시보드가 캡쳐되었습니다!
         </div>
-        <div className="bg-gray-50 rounded-lg p-4 border" data-testid="chart-content">
-          <ResponsiveContainer width="100%" height={500}>
-            {renderChart()}
-          </ResponsiveContainer>
-        </div>
-      </div>
-    );
-  };
-
-  // 페이지네이션 컴포넌트
-  const Pagination = ({ 
-    currentPage, 
-    totalPages, 
-    onPageChange 
-  }: { 
-    currentPage: number; 
-    totalPages: number; 
-    onPageChange: (page: number) => void; 
-  }) => {
-    if (totalPages <= 1) return null;
-
-    const getPageNumbers = () => {
-      const pages = [];
-      const maxVisible = 5;
-      
-      if (totalPages <= maxVisible) {
-        for (let i = 1; i <= totalPages; i++) {
-          pages.push(i);
+      `;
+      document.body.appendChild(successToast);
+      setTimeout(() => {
+        if (document.body.contains(successToast)) {
+          document.body.removeChild(successToast);
         }
-      } else {
-        if (currentPage <= 3) {
-          for (let i = 1; i <= 4; i++) pages.push(i);
-          pages.push('...');
-          pages.push(totalPages);
-        } else if (currentPage >= totalPages - 2) {
-          pages.push(1);
-          pages.push('...');
-          for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
-        } else {
-          pages.push(1);
-          pages.push('...');
-          for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
-          pages.push('...');
-          pages.push(totalPages);
-        }
-      }
-      return pages;
-    };
+      }, 3000);
 
-    return (
-      <div className="flex items-center justify-center gap-2 mt-4" data-testid="pagination">
-        <button
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-          className="px-3 py-2 text-sm border border-border-light rounded-lg hover:bg-background-soft disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          data-testid="prev-page"
-        >
-          ← 이전
-        </button>
-        
-        {getPageNumbers().map((page, index) => (
-          <button
-            key={index}
-            onClick={() => typeof page === 'number' && onPageChange(page)}
-            disabled={page === '...'}
-            className={`px-3 py-2 text-sm border rounded-lg transition-colors ${
-              page === currentPage
-                ? 'bg-primary-main text-white border-primary-main'
-                : page === '...'
-                ? 'cursor-default border-transparent'
-                : 'border-border-light hover:bg-background-soft'
-            }`}
-            data-testid={page === currentPage ? "current-page" : page === '...' ? "page-ellipsis" : `page-${page}`}
-          >
-            {page}
-          </button>
-        ))}
-        
-        <button
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          className="px-3 py-2 text-sm border border-border-light rounded-lg hover:bg-background-soft disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          data-testid="next-page"
-        >
-          다음 →
-        </button>
-      </div>
-    );
-  };
-
-  // 테이블 컴포넌트
-  const TableRenderer = ({ tableData }: { tableData: TableData }) => {
-    if (!tableData.columns.length || !tableData.rows.length) {
-      return (
-        <div className="text-center py-4 text-text-secondary">
-          표시할 데이터가 없습니다.
-        </div>
-      );
+    } catch (error) {
+      console.error('캡쳐 오류:', error);
+      alert('캡쳐 중 오류가 발생했습니다.');
     }
+  }, [selectedQuery, extractQueryTitle]);
 
-    // 보이는 컬럼만 필터링
-    const visibleColumns = tableData.columns.filter(col => !hiddenColumns.has(col.name));
-    const allColumnNames = tableData.columns.map(col => col.name);
 
-    if (visibleColumns.length === 0) {
-      return (
-        <div className="text-center py-4 text-text-secondary">
-          <p className="mb-2">모든 컬럼이 숨겨져 있습니다.</p>
-          <button
-            onClick={() => setIsColumnSettingsVisible(true)}
-            className="px-3 py-1 text-sm bg-primary-main text-white rounded hover:bg-primary-dark transition-colors"
-          >
-            컬럼 설정
-          </button>
-        </div>
-      );
-    }
 
-    // 페이지네이션 계산
-    const totalPages = Math.ceil(tableData.rows.length / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    const currentPageData = tableData.rows.slice(startIndex, endIndex);
 
-    const handlePageChange = (page: number) => {
-      setCurrentPage(page);
-    };
-
-    const handleColumnClick = (columnName: string, isShiftClick: boolean = false) => {
-      if (isShiftClick) {
-        // Shift + 클릭: Y축 설정 (숫자 컬럼만 가능)
-        const columnTypes = analyzeDataTypes(tableData);
-        if (columnTypes[columnName] === 'number') {
-          setSelectedYColumn(columnName === selectedYColumn ? null : columnName);
-        }
-      } else {
-        // 일반 클릭: X축 설정
-        setSelectedXColumn(columnName === selectedXColumn ? null : columnName);
-      }
-    };
-
-    return (
-      <div data-testid="table-container">
-        {/* 테이블 상단 정보 */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-text-muted">
-              총 <span className="font-semibold text-text-primary">{tableData.rows.length}</span>개 행 중{' '}
-              <span className="font-semibold text-text-primary">
-                {startIndex + 1}-{Math.min(endIndex, tableData.rows.length)}
-              </span>개 표시
-            </div>
-            {hiddenColumns.size > 0 && (
-              <div className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
-                {hiddenColumns.size}개 컬럼 숨김
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsColumnSettingsVisible(true)}
-              className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors flex items-center gap-1"
-              title="컬럼 설정"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
-              </svg>
-              컬럼 설정
-            </button>
-            {totalPages > 1 && (
-              <div className="text-sm text-text-muted">
-                페이지 {currentPage} / {totalPages}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 테이블 */}
-        <div className="border border-border-light rounded-lg overflow-hidden">
-          <div className="overflow-auto max-h-[60vh]">
-            <table className="min-w-full">
-              <thead className="bg-background-soft sticky top-0 z-10">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-text-primary border-b border-border-light w-12">
-                    #
-                  </th>
-                  {visibleColumns.map((column, index) => {
-                    const columnTypes = analyzeDataTypes(tableData);
-                    const isNumber = columnTypes[column.name] === 'number';
-                    const isSelectedX = selectedXColumn === column.name;
-                    const isSelectedY = selectedYColumn === column.name;
-                    
-                    return (
-                      <th
-                        key={index}
-                        onClick={(e) => handleColumnClick(column.name, e.shiftKey)}
-                        onContextMenu={(e) => handleColumnRightClick(e, column.name)}
-                        className={`px-4 py-3 text-left text-sm font-semibold border-b border-border-light cursor-pointer transition-colors hover:bg-gray-200 ${
-                          isSelectedX
-                            ? 'bg-blue-500 text-white hover:bg-blue-600'
-                            : isSelectedY
-                            ? 'bg-green-500 text-white hover:bg-green-600'
-                            : 'text-text-primary'
-                        }`}
-                        title={`클릭: X축 설정${isNumber ? ' • Shift+클릭: Y축 설정' : ''} ${
-                          isSelectedX ? '(X축 선택됨)' : isSelectedY ? '(Y축 선택됨)' : ''
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          {column.name}
-                          {isSelectedX && <span className="text-xs">📊X</span>}
-                          {isSelectedY && <span className="text-xs">📈Y</span>}
-                          {isNumber && !isSelectedX && !isSelectedY && (
-                            <span className="text-xs opacity-50">🔢</span>
-                          )}
-                        </div>
-                      </th>
-                    );
-                  })}
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-border-light">
-                {currentPageData.map((row, rowIndex) => {
-                  const globalRowIndex = startIndex + rowIndex + 1;
-                  return (
-                    <tr key={globalRowIndex} className="hover:bg-background-soft transition-colors">
-                      <td className="px-4 py-3 text-sm text-text-muted border-b border-border-light w-12">
-                        {globalRowIndex}
-                      </td>
-                      {visibleColumns.map((column, colIndex) => (
-                        <td
-                          key={colIndex}
-                          className="px-4 py-3 text-sm text-text-primary border-b border-border-light"
-                        >
-                          <div className="max-w-xs truncate" title={String(row[column.name] || '')}>
-                            {row[column.name] !== null && row[column.name] !== undefined 
-                              ? String(row[column.name]) 
-                              : '-'
-                            }
-                          </div>
-                        </td>
-                      ))}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        
-        {/* 페이지네이션 */}
-        <Pagination 
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={handlePageChange}
-        />
-      </div>
-    );
-  };
 
   // 화면 크기 감지
   useEffect(() => {
@@ -648,7 +262,7 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
     } else {
       document.title = 'Baro Board';
     }
-  }, [apiQueryTitle, selectedQuery?.id]);
+  }, [apiQueryTitle, selectedQuery?.id, extractQueryTitle]);
 
   // API 호출 함수
   const fetchDetailAndPlainApi = useCallback(async (id: number) => {
@@ -657,93 +271,30 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
     setError(null);
     
     try {
-      const apiKey = localStorage.getItem('baroboard_api_key');
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
+      const { latestQueryDataId, queryName } = await callPreApi(id);
       
-      if (apiKey) {
-        headers['Authorization'] = `Key ${apiKey}`;
-      }
-      
-      // 1단계: pre API 호출하여 latest_query_data_id 얻기
-      const preApiUrl = `https://tg0825.app.n8n.cloud/webhook/01dedf36-0da7-4546-b5c2-dac80381452c?item-id=${id}&api-type=pre`;
-      
-      const preResponse = await fetch(preApiUrl, {
-        method: 'GET',
-        headers,
-      });
-
-      if (!preResponse.ok) {
-        throw new Error(`Pre API 호출 실패: ${preResponse.status}`);
-      }
-
-      const preData = await preResponse.json() as Record<string, unknown>;
-      const latestQueryDataId = (preData?.body as Record<string, unknown>)?.latest_query_data_id;
-      
-      // pre API 응답에서 쿼리 제목 추출 (body.name)
-      const queryName = (preData?.body as Record<string, unknown>)?.name;
-      if (queryName && typeof queryName === 'string') {
-        console.log('✅ Pre API에서 제목 추출:', queryName);
+      if (queryName) {
         setApiQueryTitle(queryName);
-      } else {
-        console.log('❌ Pre API에서 제목 추출 실패, body:', preData?.body);
       }
 
-      if (!latestQueryDataId) {
-        setError('latest_query_data_id를 찾을 수 없습니다.');
-        return;
-      }
-
-      // 2단계: detail과 plain API를 독립적으로 병렬 호출
-      // Detail API 호출
-      fetch(`https://tg0825.app.n8n.cloud/webhook/01dedf36-0da7-4546-b5c2-dac80381452c?item-id=${id}&api-type=detail&latest_query_data_id=${latestQueryDataId}`, {
-              method: 'GET',
-        headers,
-      })
-      .then(res => res.ok ? res.text() : Promise.reject(`Detail API 실패: ${res.status}`))
-      .then(htmlData => {
-        setDetailResponse({
-          data: htmlData,
-          timestamp: new Date().toISOString(),
-          type: 'detail'
-        });
-      })
-      .catch(err => {
-        setError(`Detail API 오류: ${err}`);
-      })
-      .finally(() => {
-        setIsLoadingDetail(false);
-      });
-
-      // Plain API 호출
-      fetch(`https://tg0825.app.n8n.cloud/webhook/01dedf36-0da7-4546-b5c2-dac80381452c?item-id=${id}&api-type=plain&latest_query_data_id=${latestQueryDataId}`, {
-        method: 'GET',
-        headers,
-      })
-      .then(res => res.ok ? res.text() : Promise.reject(`Plain API 실패: ${res.status}`))
-      .then(jsonData => {
-        // JSON 파싱 시도
-        try {
-          const parsedData = JSON.parse(jsonData);
-          setPlainResponse({
-            data: parsedData,
-            timestamp: new Date().toISOString(),
-            type: 'plain'
-          });
-        } catch {
-          // JSON 파싱 실패시 원본 텍스트로 처리
-          setPlainResponse({
-            data: jsonData,
-            timestamp: new Date().toISOString(),
-            type: 'plain'
-          });
+      // 병렬 API 호출
+      Promise.allSettled([
+        callDetailApi(id, latestQueryDataId),
+        callPlainApi(id, latestQueryDataId)
+      ]).then((results) => {
+        if (results[0].status === 'fulfilled') {
+          setDetailResponse(results[0].value);
+        } else {
+          setError(`Detail API 오류: ${results[0].reason}`);
         }
-      })
-      .catch(err => {
-        setError(`Plain API 오류: ${err}`);
-      })
-      .finally(() => {
+        
+        if (results[1].status === 'fulfilled') {
+          setPlainResponse(results[1].value);
+        } else {
+          setError(`Plain API 오류: ${results[1].reason}`);
+        }
+        
+        setIsLoadingDetail(false);
         setIsLoadingPlain(false);
       });
 
@@ -779,7 +330,7 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
         }
       }
     }
-  }, [plainResponse]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [plainResponse]);
 
   return (
     <div 
@@ -789,29 +340,58 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
     className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative" data-testid="main-container">
       <div dangerouslySetInnerHTML={{ __html: '<!-- 대시보드 헤더 영역 -->' }} />
       <div className="border-b border-border-light p-4 bg-background-main">
-        <h1 className="text-2xl font-bold text-text-primary" data-testid="dashboard-title">
-          {(() => {
-            const queryTitle = extractQueryTitle();
-            const queryId = selectedQuery?.id;
-            
-            if (queryTitle && queryId) {
-              return `대시보드 - ${queryTitle} (#${queryId})`;
-            } else if (queryTitle) {
-              return `대시보드 - ${queryTitle}`;
-            } else if (queryId) {
-              return `대시보드 - 쿼리 #${queryId}`;
-            } else {
-              return '대시보드';
-            }
-          })()}
-        </h1>
-        <p className="text-text-secondary mt-1">
-          {selectedQuery ? (
-            selectedQuery.description || '상세 정보를 확인하고 있습니다'
-          ) : (
-            "쿼리를 선택해주세요"
-          )}
-        </p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-text-primary" data-testid="dashboard-title">
+              {(() => {
+                const queryTitle = extractQueryTitle();
+                const queryId = selectedQuery?.id;
+                
+                if (queryTitle && queryId) {
+                  return `대시보드 - ${queryTitle} (#${queryId})`;
+                } else if (queryTitle) {
+                  return `대시보드 - ${queryTitle}`;
+                } else if (queryId) {
+                  return `대시보드 - 쿼리 #${queryId}`;
+                } else {
+                  return '대시보드';
+                }
+              })()}
+            </h1>
+            <p className="text-text-secondary mt-1">
+              {selectedQuery ? (
+                selectedQuery.description || '상세 정보를 확인하고 있습니다'
+              ) : (
+                "쿼리를 선택해주세요"
+              )}
+            </p>
+          </div>
+                     {selectedQuery && (
+             <div className="flex items-center gap-2">
+               <button
+                 onClick={handleCapture}
+                 className="flex items-center gap-2 px-3 py-2 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                 title="대시보드 캡쳐하기"
+               >
+                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                 </svg>
+                 캡쳐
+               </button>
+               <button
+                 onClick={handleOpenPopup}
+                 className="flex items-center gap-2 px-3 py-2 text-sm bg-primary-main text-white rounded-lg hover:bg-primary-dark transition-colors"
+                 title="새 창에서 대시보드만 보기"
+               >
+                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                 </svg>
+                 팝업으로 보기
+               </button>
+             </div>
+           )}
+        </div>
       </div>
 
       <div dangerouslySetInnerHTML={{ __html: '<!-- 메인 컨텐츠 영역 -->' }} />
@@ -857,7 +437,7 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
                 <div>
                   <pre 
                     className="whitespace-pre-wrap overflow-auto bg-gray-50 p-4 rounded border text-sm"
-                    dangerouslySetInnerHTML={{ __html: detailResponse.data }}
+                    dangerouslySetInnerHTML={{ __html: String(detailResponse.data) }}
                   />
                 </div>
               ) : (
@@ -956,7 +536,19 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
                         <div className="text-sm text-text-muted mb-4">
                           응답 시간: {new Date(plainResponse.timestamp).toLocaleString()}
                         </div>
-                        <TableRenderer tableData={tableData} />
+                        <DataTable 
+                          tableData={tableData}
+                          currentPage={currentPage}
+                          itemsPerPage={itemsPerPage}
+                          hiddenColumns={hiddenColumns}
+                          selectedXColumn={selectedXColumn}
+                          selectedYColumn={selectedYColumn}
+                          onPageChange={setCurrentPage}
+                          onColumnClick={handleColumnClick}
+                          onColumnRightClick={handleColumnRightClick}
+                          onShowColumnSettings={() => setIsColumnSettingsVisible(true)}
+                          analyzeDataTypes={analyzeDataTypes}
+                        />
                       </div>
                     ) : plainResponse && !tableData ? (
                       <div>
@@ -1019,7 +611,6 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
           </>
         )}
 
-        {/* 컨텍스트 메뉴 */}
         <ColumnContextMenu
           isVisible={contextMenu.isVisible}
           position={contextMenu.position}
@@ -1028,7 +619,6 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
           onClose={closeContextMenu}
         />
 
-        {/* 컬럼 설정 모달 */}
         <ColumnSettingsModal
           isVisible={isColumnSettingsVisible}
           allColumns={(() => {
