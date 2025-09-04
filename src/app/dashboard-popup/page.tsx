@@ -26,6 +26,18 @@ function DashboardPopupContent() {
   const [isLoadingPlain, setIsLoadingPlain] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [apiQueryTitle, setApiQueryTitle] = useState<string | null>(null);
+  
+  // 차트 렌더링 관련 상태 (대용량 데이터 처리)
+  const [shouldRenderChart, setShouldRenderChart] = useState(false);
+  const [isLargeDataset, setIsLargeDataset] = useState(false);
+
+  // 리대시에서 보기 (Redash로 이동)
+  const handleOpenRedash = useCallback(() => {
+    if (!queryId) return;
+    
+    const redashUrl = `https://redash.barogo.io/queries/${queryId}`;
+    window.open(redashUrl, '_blank', 'noopener,noreferrer');
+  }, [queryId]);
 
   // 캡쳐 함수
   const handleCapture = useCallback(async () => {
@@ -197,26 +209,42 @@ function DashboardPopupContent() {
   const chartData = tableData ? generateChartData(tableData) : null;
 
   return (
-    <div className="min-h-screen bg-gray-50 relative">
-      {/* 우측 상단 캡쳐 버튼 */}
-      <button
-        onClick={handleCapture}
-        className="fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors shadow-lg"
-        title="대시보드 캡쳐하기"
-      >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-        캡쳐
-      </button>
+    <div className="min-h-screen bg-gray-50 relative" style={{ width: '794px', maxWidth: '794px', margin: '0 auto' }}>
+      {/* 우측 상단 버튼들 */}
+      <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
+        <button
+          onClick={handleOpenRedash}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors shadow-lg"
+          title="리대시에서 보기"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+          리대시
+        </button>
+        <button
+          onClick={handleCapture}
+          className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors shadow-lg"
+          title="대시보드 캡쳐하기"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          캡쳐
+        </button>
+      </div>
 
-      {/* 헤더 */}
-      <div className="bg-white border-b border-gray-200 p-6">
-        <h1 className="text-2xl font-bold text-gray-900">
-          {apiQueryTitle ? `대시보드 - ${apiQueryTitle} (#${queryId})` : `대시보드 - 쿼리 #${queryId}`}
-        </h1>
-        <p className="text-gray-600 mt-1">팝업 모드</p>
+      {/* 헤더 - A4 최적화 */}
+      <div className="bg-white border-b border-gray-200 p-4">
+        <div className="text-center">
+          <h1 className="text-lg font-bold text-gray-900 mb-1">
+            {apiQueryTitle || `쿼리 #${queryId}`}
+          </h1>
+          <p className="text-gray-500 text-xs">
+            생성일: {new Date().toLocaleString('ko-KR')} | A4 대시보드
+          </p>
+        </div>
       </div>
 
       {/* 에러 표시 */}

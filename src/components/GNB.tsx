@@ -15,6 +15,11 @@ const GNB = () => {
     router.push('/');
   };
 
+  // 사용자 정보 클릭시 마이페이지로 이동
+  const handleUserClick = () => {
+    router.push('/mypage');
+  };
+
   // 화면 크기 감지 (항상 호출되어야 함)
   useEffect(() => {
     const checkMobile = () => {
@@ -42,14 +47,14 @@ const GNB = () => {
         </div>
       )}
       
-      <nav className={`fixed ${user?.session ? 'top-6' : 'top-0'} left-0 right-0 h-15 bg-primary-main border-b border-primary-dark flex items-center justify-between px-4 md:px-6 z-[1002]`}>
+                  <nav className={`fixed ${user?.session ? 'top-6' : 'top-0'} left-0 right-0 h-15 bg-gradient-to-r from-primary-main via-primary-light to-primary-main border-b border-primary-dark shadow-soft flex items-center justify-between px-4 md:px-6 z-[1002]`}>
         {/* 로고 */}
         <div 
           onClick={handleLogoClick}
           className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity duration-200"
           title="홈으로 이동"
         >
-          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-primary-main font-bold text-base">
+          <div className="w-8 h-8 bg-gradient-to-br from-white to-gray-50 rounded-lg flex items-center justify-center text-primary-main font-bold text-base shadow-soft border border-primary-pale">
             B
           </div>
           <h1 className={`${isMobile ? 'text-lg' : 'text-xl'} font-bold text-white m-0`}>
@@ -59,27 +64,60 @@ const GNB = () => {
 
         {/* 우측 영역 */}
         <div className="flex items-center gap-4">
-          {/* 사용자 정보 */}
-          <div className="hidden md:flex items-center gap-2 text-white">
-            <div className="w-6 h-6 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <span className="text-sm font-medium">{user?.email || '사용자'}</span>
-          </div>
+          {user?.isLoggedIn && (
+            <>
+              {/* 사용자 정보 (데스크톱) */}
+              <div 
+                onClick={handleUserClick}
+                className="hidden md:flex items-center gap-2 text-white cursor-pointer hover:bg-white hover:bg-opacity-10 px-3 py-2 rounded-lg transition-all duration-200"
+                title="마이페이지로 이동"
+              >
+                <div className="w-6 h-6 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <span className="text-sm font-medium">{user?.email || '사용자'}</span>
+              </div>
 
-          {/* 로그아웃 버튼 */}
-          <button
-            onClick={() => logout()}
-            className="flex items-center gap-2 px-3 py-1.5 bg-white bg-opacity-10 hover:bg-opacity-20 text-white text-sm rounded-lg transition-all duration-200"
-            title="로그아웃"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            {!isMobile && <span>로그아웃</span>}
-          </button>
+              {/* 사용자 정보 (모바일) */}
+              <button
+                onClick={handleUserClick}
+                className="md:hidden flex items-center justify-center w-8 h-8 bg-white bg-opacity-10 hover:bg-opacity-20 text-white rounded-lg transition-all duration-200"
+                title="마이페이지로 이동"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                </svg>
+              </button>
+
+              {/* 로그아웃 버튼 */}
+              <button
+                onClick={() => logout()}
+                className="flex items-center gap-2 px-3 py-1.5 bg-white bg-opacity-10 hover:bg-opacity-20 text-white text-sm rounded-lg transition-all duration-200"
+                title="로그아웃"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                {!isMobile && <span>로그아웃</span>}
+              </button>
+            </>
+          )}
+
+          {/* 로그인 버튼 (로그인하지 않은 경우) */}
+          {!user?.isLoggedIn && (
+            <button
+              onClick={() => router.push('/login')}
+              className="flex items-center gap-2 px-3 py-1.5 bg-white bg-opacity-10 hover:bg-opacity-20 text-white text-sm rounded-lg transition-all duration-200"
+              title="로그인"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+              </svg>
+              {!isMobile && <span>로그인</span>}
+            </button>
+          )}
 
           {/* AInity4 로고 */}
           <div className="relative pl-4 border-l border-white border-opacity-20">

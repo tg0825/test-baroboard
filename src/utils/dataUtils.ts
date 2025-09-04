@@ -7,7 +7,7 @@ export interface TableData {
 
 export interface ChartData {
   data: Array<Record<string, string | number>>;
-  type: 'bar' | 'line' | 'pie';
+  type: 'bar' | 'line'; // pie 차트 타입 제거 (항상 막대 그래프 사용)
   xKey: string;
   yKey: string;
   title?: string;
@@ -110,25 +110,23 @@ export const generateChartData = (tableData: TableData, selectedXColumn?: string
   if (selectedXColumn && tableData.columns.some(col => col.name === selectedXColumn)) {
     xKey = selectedXColumn;
     
-    // 선택된 X축 타입에 따라 차트 타입 결정
+    // 선택된 X축 타입에 따라 차트 타입 결정 (원형 그래프 비활성화)
     const selectedColumnType = columnTypes[selectedXColumn];
     if (selectedColumnType === 'date') {
       chartType = 'line';
     } else if (selectedColumnType === 'string') {
-      const uniqueValues = new Set(tableData.rows.map(row => row[xKey])).size;
-      chartType = uniqueValues <= 7 ? 'pie' : 'bar'; // 8개 이상이면 막대 그래프
+      chartType = 'bar'; // 항상 막대 그래프로 설정 (파이 차트 비활성화)
     } else {
       chartType = 'bar';
     }
   } else {
-    // 기본 자동 선택 로직
+    // 기본 자동 선택 로직 (원형 그래프 비활성화)
     if (dateColumns.length > 0) {
       xKey = dateColumns[0];
       chartType = 'line';
     } else if (stringColumns.length > 0) {
       xKey = stringColumns[0];
-      const uniqueValues = new Set(tableData.rows.map(row => row[xKey])).size;
-      chartType = uniqueValues <= 7 ? 'pie' : 'bar'; // 8개 이상이면 막대 그래프
+      chartType = 'bar'; // 항상 막대 그래프로 설정 (파이 차트 비활성화)
     } else {
       xKey = tableData.columns[0].name;
     }

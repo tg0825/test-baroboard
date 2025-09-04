@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Snackbar from './Snackbar';
+import { addToViewHistory } from '@/utils/viewHistoryUtils';
 
 interface QueryItem {
   id: number;
@@ -141,6 +142,15 @@ const queryList = React.useMemo((): QueryItem[] => {
       });
       return; // 여기서 함수 종료
     }
+    
+    // 조회 이력에 추가 (로컬스토리지)
+    addToViewHistory({
+      id: query.id,
+      name: query.name || `쿼리 ID ${query.id}`,
+      description: query.description || '',
+      type: query.type,
+      runtime: query.runtime,
+    });
     
     // 기본 쿼리 정보를 상위 컴포넌트에 전달
     const data = { 
@@ -423,7 +433,7 @@ const queryList = React.useMemo((): QueryItem[] => {
                     {query.runtime && (
                       <span className={isDisabled ? 'text-red-400' : ''}>
                         ⏱️ {query.runtime}
-                      </span>
+                    </span>
                     )}
                   </div>
                 </li>

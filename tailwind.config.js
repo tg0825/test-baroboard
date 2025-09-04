@@ -14,12 +14,12 @@ module.exports = {
         '15': '60px',
       },
       colors: {
-        // 바이탈오렌지 기반 색상
-        'primary-main': '#fa5014',
-        'primary-light': '#ff7a47',
-        'primary-lighter': '#ffb399',
-        'primary-dark': '#e63d00',
-        'primary-pale': '#fff4f1',
+        // 부드러운 오렌지 그라데이션 색상
+        'primary-main': '#ff8c42',
+        'primary-light': '#ffa366',
+        'primary-lighter': '#ffbb88',
+        'primary-dark': '#ff6b1a',
+        'primary-pale': '#fff7f3',
         
         // 보조 색상
         'secondary-main': '#6c757d',
@@ -54,18 +54,21 @@ module.exports = {
         // 테두리
         'border-main': '#e9ecef',
         'border-light': '#f1f3f4',
-        'border-primary': '#ffccb8',
+        'border-primary': '#ffddcc',
       },
       boxShadow: {
-        'soft': '0 2px 8px rgba(250, 80, 20, 0.08)',
-        'medium': '0 4px 16px rgba(250, 80, 20, 0.12)',
-        'strong': '0 8px 32px rgba(250, 80, 20, 0.16)',
-        'button': '0 2px 8px rgba(250, 80, 20, 0.2)',
+        'soft': '0 2px 12px rgba(255, 140, 66, 0.1)',
+        'medium': '0 4px 20px rgba(255, 140, 66, 0.15)',
+        'strong': '0 8px 40px rgba(255, 140, 66, 0.2)',
+        'button': '0 4px 16px rgba(255, 140, 66, 0.25)',
+        'glow': '0 0 20px rgba(255, 140, 66, 0.3)',
       },
       backgroundImage: {
-        'gradient-primary': 'linear-gradient(135deg, #fa5014 0%, #ff7a47 100%)',
-        'gradient-soft': 'linear-gradient(135deg, #fff4f1 0%, #fafbfc 100%)',
-        'gradient-sunset': 'linear-gradient(135deg, #ff7a47 0%, #ffc107 100%)',
+        'gradient-primary': 'linear-gradient(135deg, #ff8c42 0%, #ffa366 50%, #ffbb88 100%)',
+        'gradient-soft': 'linear-gradient(135deg, #fff7f3 0%, #fffbf8 50%, #fafbfc 100%)',
+        'gradient-sunset': 'linear-gradient(135deg, #ffa366 0%, #ffbb88 50%, #ffd4aa 100%)',
+        'gradient-warm': 'linear-gradient(45deg, #ff8c42 0%, #ffb366 25%, #ffd4aa 50%, #fff2e6 100%)',
+        'gradient-glow': 'radial-gradient(circle, #ff8c42 0%, #ffa366 30%, #ffbb88 60%, transparent 100%)',
       },
       fontFamily: {
         sans: ['var(--font-geist-sans)', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
@@ -73,5 +76,7 @@ module.exports = {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    require('@tailwindcss/typography'),
+  ],
 } 

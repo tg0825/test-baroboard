@@ -4,9 +4,9 @@ import {
   Bar, 
   LineChart, 
   Line, 
-  PieChart, 
-  Pie, 
-  Cell, 
+  // PieChart, // 파이 차트 비활성화로 인해 주석 처리
+  // Pie, 
+  // Cell, 
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -59,23 +59,16 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ chartData }) => {
         );
 
       case 'pie':
+        // 파이 차트는 비활성화됨 - 대신 막대 그래프를 표시
         return (
-          <PieChart>
-            <Pie
-              data={chartData.data}
-              dataKey={chartData.yKey}
-              nameKey={chartData.xKey}
-              cx="50%"
-              cy="50%"
-              outerRadius={120}
-              label={({ name, value }) => `${name}: ${value}`}
-            >
-              {chartData.data.map((_, index) => (
-                <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-              ))}
-            </Pie>
+          <BarChart data={chartData.data}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey={chartData.xKey} />
+            <YAxis />
             <Tooltip />
-          </PieChart>
+            <Legend />
+            <Bar dataKey={chartData.yKey} fill={CHART_COLORS[0]} />
+          </BarChart>
         );
 
       default:
@@ -92,7 +85,7 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ chartData }) => {
         <div className="text-sm text-text-muted">
           {chartData.type === 'bar' && '막대 차트'}
           {chartData.type === 'line' && '선 차트'}
-          {chartData.type === 'pie' && '파이 차트'}
+          {chartData.type === 'pie' && '막대 차트 (파이 차트 비활성화)'}
         </div>
       </div>
       <div className="bg-gray-50 rounded-lg p-4 border" data-testid="chart-content">
