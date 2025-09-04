@@ -22,7 +22,7 @@ const MyPage = () => {
   // 조회 기록 관련 상태
   const [viewHistory, setViewHistory] = useState<ViewHistoryItem[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(15); // 페이지당 15개
+  const [itemsPerPage] = useState(10); // 페이지당 10개
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   // 메뉴 상태
@@ -186,14 +186,19 @@ const MyPage = () => {
               <nav className="p-2">
                 <button
                   onClick={() => setActiveMenu('history')}
-                  className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 mb-2 ${
+                  className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 mb-2 flex items-center gap-3 ${
                     activeMenu === 'history'
                       ? 'bg-primary-pale text-primary-main border border-primary-light'
                       : 'text-text-secondary hover:bg-gray-50 hover:text-text-primary'
                   }`}
                 >
-                  <div className="font-medium text-sm">내가 본 쿼리</div>
-                  <div className="text-xs opacity-75">{viewHistory.length}개의 기록</div>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                  </svg>
+                  <div>
+                    <div className="font-medium text-sm">내가 본 쿼리</div>
+                    <div className="text-xs opacity-75">{viewHistory.length}개의 기록</div>
+                  </div>
                 </button>
                 
                 <button

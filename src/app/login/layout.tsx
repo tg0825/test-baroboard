@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 export const metadata: Metadata = {
   title: "로그인 - BaroBoard",
@@ -11,8 +12,8 @@ export default function LoginLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
+    <AuthProvider>
       {children}
-    </>
+    </AuthProvider>
   );
 }

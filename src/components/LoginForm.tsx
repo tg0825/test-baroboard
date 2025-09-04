@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -14,8 +14,24 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [emailError, setEmailError] = useState('');
+  const [showTeamInfo, setShowTeamInfo] = useState(false);
   const router = useRouter();
   const { login } = useAuth();
+
+  // 외부 클릭 시 팀 정보 툴팁 닫기
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showTeamInfo) {
+        const target = event.target as Element;
+        if (!target.closest('[data-team-info-container]')) {
+          setShowTeamInfo(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showTeamInfo]);
 
   // 이메일 유효성 검사
   const validateEmail = (email: string): boolean => {
@@ -103,35 +119,70 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-pale to-background-soft flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden">
+      {/* 배경 이미지 레이어 */}
+      <div 
+        className="absolute inset-0 z-0"
+        style={{
+          backgroundImage: `url('https://images.unsplash.com/photo-1556761175-b413da4baf72?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1974&q=80&fm=webp')`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }}
+      >
+        {/* 블러 오버레이 */}
+        <div className="absolute inset-0 backdrop-blur-sm bg-black/20"></div>
+        
+        {/* 그라데이션 오버레이 */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary-main/10 via-transparent to-primary-dark/10"></div>
+        
+        {/* 추가 다크 오버레이 (가독성 향상) */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-black/20"></div>
+        
+        {/* 비네팅 효과 (외각 어둡게) */}
+        <div 
+          className="absolute inset-0"
+          style={{
+            background: 'radial-gradient(circle, transparent 20%, rgba(0,0,0,0.3) 70%, rgba(0,0,0,0.6) 100%)'
+          }}
+        ></div>
+      </div>
+
+      {/* 메인 콘텐츠 */}
+      <div className="relative z-10 w-full max-w-md">
         {/* 로고 영역 */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-main rounded-2xl mb-4 shadow-medium">
-            <svg
-              className="w-8 h-8 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-              />
-            </svg>
-          </div>
-          <h1 className="text-3xl font-bold text-text-primary mb-2">
-            Baro<span className="text-primary-main">Board</span>
+          <h1 className="text-6xl font-bold text-white mb-4 drop-shadow-lg">
+            Baro<span 
+              className="bg-gradient-to-r from-orange-400 via-orange-500 to-red-500 bg-clip-text text-transparent animate-pulse"
+              style={{
+                backgroundSize: '200% 200%',
+                animation: 'gradient-move 3s ease-in-out infinite'
+              }}
+            >Board</span>
           </h1>
-          <p className="text-text-secondary">
-            Dashboard Analytics Platform
+          <p className="text-white/90 text-xl drop-shadow-md">
+            BAROGO Analytics Platform
           </p>
         </div>
 
+        {/* 그라데이션 애니메이션 CSS */}
+        <style jsx>{`
+          @keyframes gradient-move {
+            0% {
+              background-position: 0% 50%;
+            }
+            50% {
+              background-position: 100% 50%;
+            }
+            100% {
+              background-position: 0% 50%;
+            }
+          }
+        `}</style>
+
         {/* 로그인 폼 */}
-        <div className="card p-8 shadow-strong" data-testid="login-form">
+        <div className="bg-white/95 backdrop-blur-md p-8 rounded-2xl shadow-2xl border border-white/20" data-testid="login-form">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* 이메일 입력 */}
             <div>
@@ -189,6 +240,13 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
               </div>
             )}
 
+            {/* 리대시 계정 안내 */}
+            <div className="text-center">
+              <p className="text-gray-600 text-sm">
+                리대시 계정으로 접속 가능합니다.
+              </p>
+            </div>
+
             {/* 로그인 버튼 */}
             <button
               type="submit"
@@ -207,21 +265,45 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
             </button>
           </form>
 
-          {/* API 연동 안내 */}
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <p className="text-sm text-blue-700 text-center">
-              <strong>🔗 n8n 웹훅 연동</strong><br />
-              로그인 요청이 n8n 워크플로우로 전송됩니다
-            </p>
-          </div>
         </div>
 
         {/* 하단 정보 */}
         <div className="text-center mt-8">
-          <p className="text-text-light text-sm">
+          <p className="text-white/70 text-sm drop-shadow-md">
             © 2024 AIniti4 Team. All rights reserved.
           </p>
         </div>
+      </div>
+
+      {/* 우측 하단 물음표 아이콘 */}
+      <div className="fixed bottom-6 right-6 z-20" data-team-info-container>
+        <button
+          onClick={() => setShowTeamInfo(!showTeamInfo)}
+          className="w-12 h-12 bg-white/90 backdrop-blur-md rounded-full shadow-lg border border-white/20 flex items-center justify-center text-red-500 hover:bg-white hover:text-red-600 transition-all duration-200 hover:scale-105"
+          title="팀 정보"
+        >
+          <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+          </svg>
+        </button>
+
+        {/* 팀 정보 툴팁 */}
+        {showTeamInfo && (
+          <div className="absolute bottom-16 right-0 w-64 bg-white/95 backdrop-blur-md rounded-lg shadow-xl border border-white/20 p-4 transform transition-all duration-200 animate-in slide-in-from-bottom-2">
+            <div className="text-center">
+              <h3 className="font-semibold text-gray-800 mb-2">AI프로젝트 4조 AInity4</h3>
+              <div className="text-sm text-gray-600 space-y-1">
+                <p>윤주희</p>
+                <p>김세민</p>
+                <p>심항보</p>
+                <p>김경림</p>
+                <p>윤태건</p>
+              </div>
+            </div>
+            {/* 화살표 */}
+            <div className="absolute bottom-[-8px] right-6 w-0 h-0 border-l-8 border-r-8 border-t-8 border-l-transparent border-r-transparent border-t-white/95"></div>
+          </div>
+        )}
       </div>
     </div>
   );
