@@ -91,7 +91,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
             if (inline) {
               return (
                 <code 
-                  className="bg-gray-100 text-gray-800 px-1.5 py-0.5 rounded-md font-mono text-[13px] border border-gray-200" 
+                  className="bg-gray-50 text-gray-700 px-1.5 py-0.5 rounded font-mono text-xs font-medium" 
                   {...props}
                 >
                   {children}
@@ -100,7 +100,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
             }
             return (
               <code 
-                className={`block bg-gray-50 text-gray-800 p-4 rounded-md overflow-x-auto text-sm font-mono leading-6 border border-gray-200 ${className || ''}`}
+                className={`inline-block bg-gray-50 text-gray-700 px-2 py-1 rounded font-mono text-sm font-medium ${className || ''}`}
                 {...props}
               >
                 {children}
