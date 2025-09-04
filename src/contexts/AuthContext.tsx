@@ -64,6 +64,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const login = (email: string, session?: string) => {
+    console.log('🔐 AuthContext - login called with:', { email, session });
+    
     const userData = {
       email,
       isLoggedIn: true,
@@ -77,6 +79,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (session) {
       localStorage.setItem('userSession', session);
     }
+    
+    console.log('✅ AuthContext - user state updated:', userData);
+    console.log('💾 AuthContext - localStorage updated');
   };
 
   const logout = () => {

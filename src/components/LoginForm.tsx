@@ -87,26 +87,43 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
         });
 
         if (response.ok) {
-          const result = await response.json();
-
+          let result = {};
           
-          // n8n 응답에서 받은 데이터 처리
-          const userEmail = result.email || email;
-          const session = result.session; // n8n에서 session 값 받기
-          const apiKey = result.api_key; // n8n에서 api_key 받기
+          // 응답 본문이 있는지 확인
+          const contentLength = response.headers.get('content-length');
+          if (contentLength && contentLength !== '0') {
+            try {
+              result = await response.json();
+            } catch (jsonError) {
+              console.warn('JSON 파싱 실패, 빈 응답으로 처리:', jsonError);
+            }
+          }
+
+          console.log('🔐 Login response:', result);
+          
+          // n8n 응답에서 받은 데이터 처리 (빈 응답인 경우 기본값 사용)
+          const userEmail = (result as any).email || email;
+          const session = (result as any).session; // n8n에서 session 값 받기
+          const apiKey = (result as any).api_key; // n8n에서 api_key 받기
           
           // API 키를 로컬스토리지에 저장
           if (apiKey) {
             localStorage.setItem('baroboard_api_key', apiKey);
-
+            console.log('💾 API key saved:', apiKey);
+          } else {
+            console.warn('⚠️ No API key received from n8n');
           }
           
           // 전역 상태로 로그인 처리 (session 포함)
+          console.log('✅ Logging in user:', userEmail, 'Session:', session);
           login(userEmail, session);
+          
+          // 로그인 성공 후 메인 페이지로 이동
+          console.log('🚀 Redirecting to home page');
           router.push('/');
         } else {
           const errorData = await response.text();
-
+          console.error('❌ Login failed:', response.status, errorData);
           setError('이메일 또는 비밀번호가 올바르지 않습니다.');
         }
       }

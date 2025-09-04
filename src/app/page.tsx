@@ -57,8 +57,13 @@ export default function Home() {
 
   // 로그인 상태 확인
   useEffect(() => {
+    console.log('🏠 Home page - Auth check:', { isLoading, user: user?.isLoggedIn, email: user?.email });
+    
     if (!isLoading && !user?.isLoggedIn) {
+      console.log('❌ Home page - User not logged in, redirecting to login');
       router.push('/login');
+    } else if (!isLoading && user?.isLoggedIn) {
+      console.log('✅ Home page - User is logged in');
     }
   }, [user, isLoading, router]);
 
