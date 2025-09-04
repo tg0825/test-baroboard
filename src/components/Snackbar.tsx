@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 interface SnackbarProps {
   message: string;
@@ -58,29 +59,38 @@ const Snackbar = ({
     }
   };
 
-  return (
-    <div 
-      className="fixed top-20 left-1/2 transform -translate-x-1/2 z-[9999]"
+  const node = (
+    <div
+      className="fixed top-6 right-6 z-[9999]"
       style={{ zIndex: 9999 }}
     >
-      <div className={`
-        ${getTypeStyles()}
-        px-4 py-3 rounded-lg shadow-lg border-2
-        animate-[slideInDown_0.3s_ease-out]
-        max-w-md min-w-[200px]
-        flex items-center gap-2
-      `}>
-        <span className="text-sm">{getIcon()}</span>
-        <span className="text-sm font-medium">{message}</span>
-        <button 
+      <div
+        className={`
+          ${getTypeStyles()}
+          px-3 py-2 rounded-md shadow-lg border
+          max-w-sm min-w-[200px]
+          flex items-center gap-2
+          transition-all duration-200 ease-out
+          translate-y-0 opacity-100
+        `}
+      >
+        <span className="text-xs">{getIcon()}</span>
+        <span className="text-sm font-medium leading-5">{message}</span>
+        <button
           onClick={onClose}
-          className="ml-auto text-white hover:text-gray-200 transition-colors"
+          className="ml-auto text-white/90 hover:text-white transition-colors"
         >
           ✕
         </button>
       </div>
     </div>
   );
+
+  // Render at body level to avoid parent transforms/layout shifts
+  if (typeof window !== 'undefined' && document?.body) {
+    return createPortal(node, document.body);
+  }
+  return node;
 };
 
 export default Snackbar;

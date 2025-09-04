@@ -143,14 +143,19 @@ const queryList = React.useMemo((): QueryItem[] => {
       return; // 여기서 함수 종료
     }
     
-    // 조회 이력에 추가 (로컬스토리지)
-    addToViewHistory({
-      id: query.id,
-      name: query.name || `쿼리 ID ${query.id}`,
-      description: query.description || '',
-      type: query.type,
-      runtime: query.runtime,
-    });
+    // 조회 이력에 추가 (Firestore 기반)
+    try {
+      await addToViewHistory({
+        id: query.id,
+        name: query.name || `쿼리 ID ${query.id}`,
+        description: query.description || '',
+        type: query.type,
+        runtime: query.runtime,
+      });
+    } catch (error) {
+      console.error('Error saving to view history:', error);
+      // 에러가 발생해도 사용자 경험에 영향주지 않도록 조용히 실패
+    }
     
     // 기본 쿼리 정보를 상위 컴포넌트에 전달
     const data = { 
@@ -431,9 +436,13 @@ const queryList = React.useMemo((): QueryItem[] => {
                   }`}>
                     <span>👤 {query.user}</span>
                     {query.runtime && (
-                      <span className={isDisabled ? 'text-red-400' : ''}>
+                      <span className={
+                        query.runtimeValue > 15
+                          ? (isSelected ? 'text-red-200' : 'text-red-600')
+                          : ''
+                      }>
                         ⏱️ {query.runtime}
-                    </span>
+                      </span>
                     )}
                   </div>
                 </li>

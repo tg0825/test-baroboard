@@ -7,8 +7,11 @@ import {
   getViewHistory, 
   removeFromViewHistory, 
   clearViewHistory,
+  migrateLocalStorageToFirestore,
   ViewHistoryItem 
 } from '@/utils/viewHistoryUtils';
+// Firebase 디버깅 도구는 보안 규칙 문제 해결을 위해 유지
+import '@/utils/firebaseDebug'; // Firebase 디버깅 함수 로드
 
 const MyPage = () => {
   const router = useRouter();
@@ -20,6 +23,7 @@ const MyPage = () => {
   const [viewHistory, setViewHistory] = useState<ViewHistoryItem[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(15); // 페이지당 15개
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   // 메뉴 상태
   const [activeMenu, setActiveMenu] = useState<'account' | 'history'>('history');
@@ -39,18 +43,39 @@ const MyPage = () => {
     }
   }, []);
 
-  // 조회 기록 로드
-  const loadViewHistory = () => {
-    const history = getViewHistory();
-    setViewHistory(history);
+  // 조회 기록 로드 (Firestore 기반)
+  const loadViewHistory = async () => {
+    setIsLoadingHistory(true);
+    try {
+      const history = await getViewHistory();
+      setViewHistory(history);
+    } catch (error) {
+      console.error('Error loading view history:', error);
+    } finally {
+      setIsLoadingHistory(false);
+    }
   };
 
-  // 초기 조회 기록 로드
+  // 초기 조회 기록 로드 및 마이그레이션
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      loadViewHistory();
+    if (typeof window !== 'undefined' && user?.isLoggedIn) {
+      // 기존 localStorage 데이터 마이그레이션 후 로드
+      const migrateAndLoad = async () => {
+        try {
+          // 마이그레이션 시도 (기존 데이터가 있으면)
+          await migrateLocalStorageToFirestore();
+          // 데이터 로드
+          await loadViewHistory();
+        } catch (error) {
+          console.error('Error during migration and load:', error);
+          // 마이그레이션 실패해도 로드는 시도
+          await loadViewHistory();
+        }
+      };
+      
+      migrateAndLoad();
     }
-  }, []);
+  }, [user?.isLoggedIn]);
 
   // 조회 기록이 변경되면 페이지를 1로 리셋
   useEffect(() => {
@@ -60,7 +85,8 @@ const MyPage = () => {
   // API 키 저장
   const handleApiKeySave = () => {
     localStorage.setItem('baroboard_api_key', apiKey);
-    alert('API 키가 저장되었습니다.');
+    // TODO: replace with global toast/snackbar context if available
+    console.log('API 키가 저장되었습니다.');
   };
 
   // API 키 초기화
@@ -68,23 +94,33 @@ const MyPage = () => {
     if (confirm('API 키를 초기화하시겠습니까?')) {
       setApiKey('');
       localStorage.removeItem('baroboard_api_key');
-      alert('API 키가 초기화되었습니다.');
+      console.log('API 키가 초기화되었습니다.');
     }
   };
 
-  // 특정 조회 기록 삭제
-  const handleRemoveHistoryItem = (queryId: number) => {
+  // 특정 조회 기록 삭제 (Firestore 기반)
+  const handleRemoveHistoryItem = async (queryId: number) => {
     if (confirm('이 기록을 삭제하시겠습니까?')) {
-      removeFromViewHistory(queryId);
-      loadViewHistory(); // 재로드
+      try {
+        await removeFromViewHistory(queryId);
+        await loadViewHistory(); // 재로드
+      } catch (error) {
+        console.error('Error removing history item:', error);
+        alert('기록 삭제 중 오류가 발생했습니다.');
+      }
     }
   };
 
-  // 전체 조회 기록 삭제
-  const handleClearAllHistory = () => {
+  // 전체 조회 기록 삭제 (Firestore 기반)
+  const handleClearAllHistory = async () => {
     if (confirm('모든 조회 기록을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) {
-      clearViewHistory();
-      loadViewHistory(); // 재로드
+      try {
+        await clearViewHistory();
+        await loadViewHistory(); // 재로드
+      } catch (error) {
+        console.error('Error clearing history:', error);
+        alert('기록 삭제 중 오류가 발생했습니다.');
+      }
     }
   };
 
@@ -150,19 +186,14 @@ const MyPage = () => {
               <nav className="p-2">
                 <button
                   onClick={() => setActiveMenu('history')}
-                  className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 flex items-center gap-3 mb-2 ${
+                  className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 mb-2 ${
                     activeMenu === 'history'
                       ? 'bg-primary-pale text-primary-main border border-primary-light'
                       : 'text-text-secondary hover:bg-gray-50 hover:text-text-primary'
                   }`}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                  </svg>
-                  <div>
-                    <div className="font-medium text-sm">내가 본 리스트</div>
-                    <div className="text-xs opacity-75">{viewHistory.length}개의 기록</div>
-                  </div>
+                  <div className="font-medium text-sm">내가 본 쿼리</div>
+                  <div className="text-xs opacity-75">{viewHistory.length}개의 기록</div>
                 </button>
                 
                 <button
@@ -331,16 +362,9 @@ const MyPage = () => {
                 {/* 헤더 */}
                 <div className="p-6 border-b border-gray-200">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center shadow-sm border border-gray-200">
-                        <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                        </svg>
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-bold text-text-primary">내가 본 리스트</h2>
-                        <p className="text-sm text-text-muted">{viewHistory.length}개의 기록</p>
-                      </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-text-primary">내가 본 쿼리</h2>
+                      <p className="text-sm text-text-muted">{viewHistory.length}개의 기록</p>
                     </div>
                     {viewHistory.length > 0 && (
                       <button
@@ -355,13 +379,14 @@ const MyPage = () => {
 
                 {/* 조회 기록 리스트 */}
                 <div className="p-0">
-                  {viewHistory.length === 0 ? (
+                  {isLoadingHistory ? (
                     <div className="text-center py-12">
-                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                      </div>
+                      <div className="animate-spin w-8 h-8 border-4 border-primary-main border-t-transparent rounded-full mx-auto mb-4"></div>
+                      <h3 className="text-lg font-medium text-text-primary mb-2">기록을 불러오는 중...</h3>
+                      <p className="text-text-muted">잠시만 기다려 주세요</p>
+                    </div>
+                  ) : viewHistory.length === 0 ? (
+                    <div className="text-center py-12">
                       <h3 className="text-lg font-medium text-text-primary mb-2">조회 기록이 없습니다</h3>
                       <p className="text-text-muted">쿼리를 선택하면 여기에 기록이 표시됩니다</p>
                     </div>
@@ -375,11 +400,6 @@ const MyPage = () => {
                             onClick={() => handleGoToQuery(item.id)}
                           >
                             <div className="flex items-center gap-4 flex-1 min-w-0">
-                              <div className="flex-shrink-0">
-                                <div className="w-10 h-10 bg-gradient-to-br from-primary-pale to-primary-light rounded-lg flex items-center justify-center shadow-soft border border-primary-lighter">
-                                  <span className="text-sm font-bold text-primary-main">#{item.id}</span>
-                                </div>
-                              </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1">
                                   <h3 className="font-semibold text-text-primary truncate">

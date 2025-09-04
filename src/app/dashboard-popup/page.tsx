@@ -131,7 +131,7 @@ function DashboardPopupContent() {
 
     } catch (error) {
       console.error('캡쳐 오류:', error);
-      alert('캡쳐 중 오류가 발생했습니다.');
+      console.log('캡쳐 중 오류가 발생했습니다.');
     }
   }, [apiQueryTitle, queryId]);
 

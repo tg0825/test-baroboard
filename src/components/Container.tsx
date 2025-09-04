@@ -5,6 +5,7 @@ import Image from 'next/image';
 import html2canvas from 'html2canvas';
 import ColumnContextMenu from './ColumnContextMenu';
 import ColumnSettingsModal from './ColumnSettingsModal';
+import Snackbar from './Snackbar';
 import ChartRenderer from './ChartRenderer';
 import DataTable from './DataTable';
 import MarkdownRenderer from './MarkdownRenderer';
@@ -53,6 +54,7 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
     columnName: '',
   });
   const [isColumnSettingsVisible, setIsColumnSettingsVisible] = useState(false);
+  const [snackbar, setSnackbar] = useState({ message: '', visible: false, type: 'info' as 'info'|'warning'|'error'|'success' });
 
   // 차트 렌더링 관련 상태 (대용량 데이터 처리)
   const [shouldRenderChart, setShouldRenderChart] = useState(false); // 차트 렌더링 여부
@@ -135,6 +137,51 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
     window.open(redashUrl, '_blank', 'noopener,noreferrer');
   }, [selectedQuery]);
 
+  // 슬랙으로 보내기
+  const handleSendSlack = useCallback(async () => {
+    try {
+      if (!selectedQuery) {
+        setSnackbar({ message: '보낼 대시보드가 없습니다. 쿼리를 먼저 선택하세요.', visible: true, type: 'warning' });
+        return;
+      }
+
+      const webhookUrl = process.env.NEXT_PUBLIC_SLACK_WEBHOOK_URL as string | undefined;
+      if (!webhookUrl) {
+        setSnackbar({ message: '슬랙 웹훅 URL이 설정되지 않았습니다. .env.local을 확인하세요.', visible: true, type: 'error' });
+        return;
+      }
+
+      const title = extractQueryTitle() || `쿼리 ID ${selectedQuery.id}`;
+      const url = `${window.location.origin}/dashboard-popup?queryId=${selectedQuery.id}`;
+
+      // AI 인사이트 요약 (텍스트 기반, 400자 제한)
+      const raw = typeof detailResponse?.data === 'string' ? detailResponse?.data : '';
+      const plain = raw
+        .replace(/<[^>]+>/g, ' ') // HTML 태그 제거
+        .replace(/[`*_>#-]/g, '') // 마크다운 심볼 제거
+        .replace(/\s+/g, ' ') // 공백 정리
+        .trim()
+        .slice(0, 400);
+
+      const text = `*${title}*\n${url}\n\n${plain || '요약 내용을 생성할 수 없습니다.'}`;
+
+      const res = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Slack webhook error: ${res.status}`);
+      }
+
+      setSnackbar({ message: '슬랙으로 전송했습니다.', visible: true, type: 'success' });
+    } catch (err) {
+      console.error('슬랙 전송 오류:', err);
+      setSnackbar({ message: '슬랙 전송 중 오류가 발생했습니다.', visible: true, type: 'error' });
+    }
+  }, [selectedQuery, detailResponse, extractQueryTitle]);
+
   // 대시보드 캡쳐 함수
   const handleCapture = useCallback(async () => {
     if (!selectedQuery) return;
@@ -144,7 +191,7 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
       const dashboardElement = document.querySelector('[data-testid="main-container"]') as HTMLElement;
       
       if (!dashboardElement) {
-        alert('캡쳐할 영역을 찾을 수 없습니다.');
+        setSnackbar({ message: '캡쳐할 영역을 찾을 수 없습니다.', visible: true, type: 'error' });
         return;
       }
 
@@ -236,7 +283,7 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
 
     } catch (error) {
       console.error('캡쳐 오류:', error);
-      alert('캡쳐 중 오류가 발생했습니다.');
+      setSnackbar({ message: '캡쳐 중 오류가 발생했습니다.', visible: true, type: 'error' });
     }
   }, [selectedQuery, extractQueryTitle]);
 
@@ -395,8 +442,18 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
             </p>
           </div>
                      {selectedQuery && (
-             <div className="flex items-center gap-2">
-                                    <button
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleSendSlack}
+                className="flex items-center gap-2 px-3 py-2 text-sm bg-gradient-to-r from-sky-500 to-sky-600 text-white rounded-lg hover:from-sky-600 hover:to-sky-700 transition-all duration-200 shadow-button"
+                title="슬랙으로 보내기"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 4h6M17 7V1M10 20H4M7 17v6M4 10V4M1 7h6M20 14v6M17 17h6"/>
+                </svg>
+                슬랙으로 보내기
+              </button>
+                                   <button
                        onClick={handleOpenRedash}
                        className="flex items-center gap-2 px-3 py-2 text-sm bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-button"
                        title="리대시에서 보기"
@@ -406,7 +463,7 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
                  </svg>
                  리대시에서 보기
                </button>
-                                    <button
+                                   <button
                        onClick={handleCapture}
                        className="flex items-center gap-2 px-3 py-2 text-sm bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-button"
                        title="대시보드 캡쳐하기"
@@ -417,7 +474,7 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
                  </svg>
                  캡쳐
                </button>
-                                    <button
+                                   <button
                        onClick={handleOpenPopup}
                        className="flex items-center gap-2 px-3 py-2 text-sm bg-gradient-to-r from-primary-main to-primary-light text-white rounded-lg hover:from-primary-dark hover:to-primary-main transition-all duration-200 shadow-button"
                        title="새 창에서 대시보드만 보기"
@@ -427,13 +484,20 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
                  </svg>
                  팝업으로 보기
                </button>
-             </div>
-           )}
+            </div>
+          )}
         </div>
       </div>
 
       <div dangerouslySetInnerHTML={{ __html: '<!-- 메인 컨텐츠 영역 -->' }} />
       <div className="flex-1 p-6 overflow-y-auto">
+        <Snackbar 
+          message={snackbar.message}
+          isVisible={snackbar.visible}
+          onClose={() => setSnackbar(prev => ({ ...prev, visible: false }))}
+          type={snackbar.type}
+          duration={2500}
+        />
         {(apiError || error) ? (
           <>
             <div dangerouslySetInnerHTML={{ __html: '<!-- API 에러 상태 -->' }} />

@@ -11,7 +11,7 @@ interface MarkdownRendererProps {
 
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className = '' }) => {
   return (
-    <div className={`prose prose-slate prose-lg max-w-none prose-headings:text-text-primary prose-p:text-text-secondary prose-strong:text-text-primary prose-code:text-red-600 prose-code:bg-gray-100 prose-pre:bg-gray-800 prose-pre:text-gray-100 prose-blockquote:border-l-primary-main prose-blockquote:bg-primary-pale prose-a:text-primary-main hover:prose-a:text-primary-dark ${className}`}>
+    <div className={`prose prose-slate max-w-none prose-headings:text-text-primary prose-p:text-text-secondary prose-strong:text-text-primary prose-blockquote:border-l-primary-main prose-blockquote:bg-primary-pale prose-a:text-primary-main hover:prose-a:text-primary-dark ${className}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -51,7 +51,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
 
           // 단락 스타일링
           p: ({ children, ...props }) => (
-            <p className="text-text-secondary leading-relaxed mb-5 text-base" {...props}>
+            <p className="text-text-secondary leading-relaxed mb-4 text-sm" {...props}>
               {children}
             </p>
           ),
@@ -70,18 +70,18 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
 
           // 목록 스타일링
           ul: ({ children, ...props }) => (
-            <ul className="mb-6 space-y-2 pl-6" {...props}>
+            <ul className="mb-4 space-y-1.5 pl-5" {...props}>
               {children}
             </ul>
           ),
           ol: ({ children, ...props }) => (
-            <ol className="mb-6 space-y-2 pl-6" {...props}>
+            <ol className="mb-4 space-y-1.5 pl-5" {...props}>
               {children}
             </ol>
           ),
           li: ({ children, ...props }) => (
-            <li className="text-text-secondary leading-relaxed relative flex items-start gap-3" {...props}>
-              <div className="w-1.5 h-1.5 bg-primary-main rounded-full mt-2 flex-shrink-0"></div>
+            <li className="text-text-secondary leading-relaxed relative flex items-start gap-2.5" {...props}>
+              <div className="w-1.5 h-1.5 bg-primary-main rounded-full mt-2.5 flex-shrink-0"></div>
               <span className="flex-1">{children}</span>
             </li>
           ),
@@ -91,7 +91,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
             if (inline) {
               return (
                 <code 
-                  className="bg-red-50 text-red-700 px-2 py-1 rounded font-mono text-sm border border-red-200" 
+                  className="bg-gray-100 text-gray-800 px-1.5 py-0.5 rounded-md font-mono text-[13px] border border-gray-200" 
                   {...props}
                 >
                   {children}
@@ -100,7 +100,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
             }
             return (
               <code 
-                className={`block bg-gray-900 text-gray-100 p-6 rounded-xl overflow-x-auto text-sm font-mono leading-relaxed shadow-lg border border-gray-700 ${className || ''}`}
+                className={`block bg-gray-50 text-gray-800 p-4 rounded-md overflow-x-auto text-sm font-mono leading-6 border border-gray-200 ${className || ''}`}
                 {...props}
               >
                 {children}
@@ -110,7 +110,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
 
           // 사전 형식 텍스트
           pre: ({ children, ...props }) => (
-            <pre className="bg-gray-900 text-gray-100 p-6 rounded-xl overflow-x-auto mb-6 shadow-lg border border-gray-700" {...props}>
+            <pre className="bg-gray-50 text-gray-800 p-0 rounded-md overflow-x-auto mb-4 border border-gray-200" {...props}>
               {children}
             </pre>
           ),
