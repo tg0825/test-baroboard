@@ -19,7 +19,7 @@ const GNB = () => {
 
   // 사용자 정보 클릭시 마이페이지로 이동
   const handleUserClick = () => {
-    router.push('/mypage');
+    router.push('/mypage/history');
   };
 
   // 쿼리 만들기 버튼 클릭시 Redash로 이동

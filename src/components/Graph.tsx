@@ -336,7 +336,7 @@ const Graph = ({ data }: { data: { [key: string]: unknown } }) => {
         ${isMobile ? 'mb-4' : 'mb-5'}
       `}>
         <div className="flex items-center gap-2 mb-4">
-          <span className="text-xl">📊</span>
+          <div className="w-2 h-2 bg-primary-main rounded-full"></div>
           <h3 className={`
             ${isMobile ? 'text-base' : 'text-lg'} 
             m-0 text-text-primary font-semibold

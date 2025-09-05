@@ -206,25 +206,30 @@ const DataTable: React.FC<DataTableProps> = ({
                   return (
                     <th
                       key={index}
-                      onClick={(e) => handleColumnClick(column.name, e.shiftKey)}
+                      onClick={(e) => handleColumnClick(column.name, e.metaKey)}
                       onContextMenu={(e) => onColumnRightClick(e, column.name)}
-                      className={`px-4 py-3 text-left text-sm font-semibold border-b border-border-light cursor-pointer transition-colors hover:bg-gray-200 ${
+                      className={`px-4 py-3 text-left text-sm font-semibold border-b border-border-light cursor-pointer transition-colors hover:bg-gray-100 ${
                         isSelectedX
-                          ? 'bg-blue-500 text-white hover:bg-blue-600'
+                          ? 'text-blue-600 font-bold'
                           : isSelectedY
-                          ? 'bg-green-500 text-white hover:bg-green-600'
+                          ? 'text-green-600 font-bold'
                           : 'text-text-primary'
                       }`}
-                      title={`클릭: X축 설정${isNumber ? ' • Shift+클릭: Y축 설정' : ''} ${
+                      title={`클릭: X축 설정${isNumber ? ' • Cmd+클릭: Y축 설정' : ''} ${
                         isSelectedX ? '(X축 선택됨)' : isSelectedY ? '(Y축 선택됨)' : ''
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        {column.name}
-                        {isSelectedX && <span className="text-xs">📊X</span>}
-                        {isSelectedY && <span className="text-xs">📈Y</span>}
-                        {isNumber && !isSelectedX && !isSelectedY && (
-                          <span className="text-xs opacity-50">🔢</span>
+                        <span className="flex-1">{column.name}</span>
+                        {isSelectedX && (
+                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">
+                            X축
+                          </span>
+                        )}
+                        {isSelectedY && (
+                          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
+                            Y축
+                          </span>
                         )}
                       </div>
                     </th>

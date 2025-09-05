@@ -47,14 +47,39 @@ interface FirestoreQueryMemo {
 
 // 현재 사용자 ID 가져오기 (AuthContext에서)
 const getCurrentUserId = (): string | null => {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === 'undefined') {
+    console.log('🔍 getCurrentUserId - window undefined (SSR)');
+    return null;
+  }
   
   try {
-    const userStr = localStorage.getItem('baroboard_user');
-    if (!userStr) return null;
+    // AuthContext 로그인 시스템에서 사용자 정보 가져오기
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    const userEmail = localStorage.getItem('userEmail');
     
-    const user = JSON.parse(userStr);
-    return user.email || user.id || null;
+    console.log('🔍 getCurrentUserId - localStorage check:');
+    console.log('  - isLoggedIn:', isLoggedIn);
+    console.log('  - userEmail:', userEmail);
+    
+    if (isLoggedIn && userEmail) {
+      console.log('👤 Using logged-in user:', userEmail);
+      return userEmail;
+    }
+
+    // 기존 baroboard_user 방식도 지원 (호환성)
+    const userStr = localStorage.getItem('baroboard_user');
+    console.log('🔍 baroboard_user:', userStr);
+    
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      console.log('🔍 Parsed baroboard_user:', user);
+      const userId = user.email || user.id || null;
+      console.log('👤 Using baroboard_user ID:', userId);
+      return userId;
+    }
+    
+    console.log('⚠️ No user found in localStorage');
+    return null;
   } catch (error) {
     console.error('Error getting current user ID:', error);
     return null;
@@ -97,7 +122,7 @@ export const createQueryMemo = async (memoData: {
 
     const docRef = await addDoc(collection(db, MEMO_COLLECTION_NAME), firestoreData);
     
-    console.log(`✅ Created memo for query ${memoData.queryId}`);
+    console.log(`✅ Created memo for query ${memoData.queryId} in collection: ${MEMO_COLLECTION_NAME}`);
     
     return {
       id: docRef.id,
@@ -191,7 +216,7 @@ export const updateQueryMemo = async (queryId: number, newMemo: string): Promise
       updatedAt: Timestamp.now(),
     });
 
-    console.log(`✅ Updated memo for query ${queryId}`);
+    console.log(`✅ Updated memo for query ${queryId} in collection: ${MEMO_COLLECTION_NAME}`);
   } catch (error) {
     console.error('❌ Error updating query memo:', error);
     throw error;
@@ -233,22 +258,30 @@ export const deleteQueryMemo = async (queryId: number): Promise<void> => {
 export const getAllQueryMemos = async (): Promise<QueryMemo[]> => {
   try {
     const userId = getCurrentUserId();
+    console.log('🔍 getAllQueryMemos - userId:', userId);
+    
     if (!userId) {
       console.warn('⚠️ No user logged in, cannot get query memos');
       return [];
     }
 
+    console.log(`🔍 Querying collection: ${MEMO_COLLECTION_NAME} for userId: ${userId}`);
+
     const q = query(
       collection(db, MEMO_COLLECTION_NAME),
       where('userId', '==', userId),
-      orderBy('updatedAt', 'desc'),
+      // orderBy('updatedAt', 'desc'), // 임시로 제거 (인덱스 문제 방지)
       limit(100) // 최대 100개
     );
 
+    console.log('🔍 Executing Firestore query...');
     const querySnapshot = await getDocs(q);
+    console.log('🔍 Query snapshot size:', querySnapshot.size);
+    
     const memos: QueryMemo[] = [];
 
     querySnapshot.forEach((doc) => {
+      console.log('🔍 Processing document:', doc.id, doc.data());
       const data = doc.data() as FirestoreQueryMemo;
       memos.push({
         id: doc.id,
@@ -264,10 +297,15 @@ export const getAllQueryMemos = async (): Promise<QueryMemo[]> => {
       });
     });
 
-    console.log(`✅ Loaded ${memos.length} query memos`);
+    // 클라이언트 사이드에서 정렬 (최신순)
+    memos.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+    console.log(`✅ Loaded ${memos.length} query memos from collection: ${MEMO_COLLECTION_NAME}`);
+    console.log('🔍 Final memos array:', memos);
     return memos;
   } catch (error) {
     console.error('❌ Error getting all query memos:', error);
+    console.error('❌ Error details:', error);
     return [];
   }
 };
@@ -280,6 +318,49 @@ export const hasQueryMemo = async (queryId: number): Promise<boolean> => {
   } catch (error) {
     console.error('❌ Error checking memo existence:', error);
     return false;
+  }
+};
+
+// 디버깅: 모든 컬렉션에서 특정 쿼리의 메모 확인
+export const debugQueryMemoStorage = async (queryId: number): Promise<void> => {
+  try {
+    const userId = getCurrentUserId();
+    if (!userId) {
+      console.log('❌ No user logged in for debug check');
+      return;
+    }
+
+    console.log(`🔍 DEBUG: Checking memo storage for query ${queryId}, user ${userId}`);
+    
+    // user-query-memos 컬렉션 확인
+    const memoQuery = query(
+      collection(db, MEMO_COLLECTION_NAME),
+      where('userId', '==', userId),
+      where('queryId', '==', queryId)
+    );
+    const memoSnapshot = await getDocs(memoQuery);
+    console.log(`📝 user-query-memos collection: ${memoSnapshot.size} documents found`);
+    
+    // user_view_history 컬렉션 확인
+    const historyQuery = query(
+      collection(db, 'user_view_history'),
+      where('userId', '==', userId),
+      where('queryId', '==', queryId)
+    );
+    const historySnapshot = await getDocs(historyQuery);
+    console.log(`📚 user_view_history collection: ${historySnapshot.size} documents found`);
+    
+    if (historySnapshot.size > 0) {
+      historySnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.memo) {
+          console.log(`⚠️ WARNING: Found memo in user_view_history collection:`, data.memo);
+        }
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Error in debug check:', error);
   }
 };
 

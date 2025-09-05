@@ -21,6 +21,7 @@ interface ApiResponse {
 function DashboardPopupContent() {
   const searchParams = useSearchParams();
   const queryId = searchParams.get('queryId');
+  const openMemo = searchParams.get('openMemo');
   const { user } = useAuth();
 
   const [detailResponse, setDetailResponse] = useState<ApiResponse | null>(null);
@@ -118,26 +119,32 @@ function DashboardPopupContent() {
 
   // 쿼리메모 모달 열기
   const handleOpenMemoModal = useCallback(async () => {
+    console.log('🔍 handleOpenMemoModal called, queryId:', queryId);
     if (!queryId) return;
     
     try {
       // 기존 메모 불러오기
       const existingMemo = await getQueryMemo(parseInt(queryId));
+      console.log('🔍 Existing memo loaded:', existingMemo);
       setCurrentMemo(existingMemo || '');
       setIsMemoModalOpen(true);
       setIsActionDropdownOpen(false);
+      console.log('✅ Memo modal opened');
     } catch (error) {
       console.error('Error loading existing memo:', error);
       // 에러가 발생해도 모달은 열기 (빈 상태로)
       setCurrentMemo('');
       setIsMemoModalOpen(true);
       setIsActionDropdownOpen(false);
+      console.log('✅ Memo modal opened (with error recovery)');
     }
   }, [queryId]);
 
   // 쿼리메모 저장
   const handleSaveMemo = useCallback(async () => {
     if (!queryId) return;
+    
+    console.log('🔍 MEMO SAVE (popup): Using queryMemoUtils functions (user-query-memos collection)');
     
     try {
       if (!currentMemo.trim()) {
@@ -174,8 +181,9 @@ function DashboardPopupContent() {
         });
       }
       
-      setIsMemoModalOpen(false);
-      setCurrentMemo('');
+      // 팝업은 닫지 않고 메모 내용만 유지
+      // setIsMemoModalOpen(false);
+      // setCurrentMemo('');
     } catch (error) {
       console.error('Error saving memo:', error);
       setSnackbar({ 
@@ -316,6 +324,17 @@ function DashboardPopupContent() {
 
     fetchData();
   }, [queryId, user]);
+
+  // openMemo 파라미터가 있으면 자동으로 메모 모달 열기 (데이터 로딩 후)
+  useEffect(() => {
+    if (openMemo === 'true' && queryId && !isLoadingDetail && !isLoadingPlain) {
+      console.log('🔍 Auto-opening memo modal due to openMemo parameter');
+      // 약간의 지연을 두어 DOM이 완전히 렌더링된 후 모달 열기
+      setTimeout(() => {
+        handleOpenMemoModal();
+      }, 500);
+    }
+  }, [openMemo, queryId, isLoadingDetail, isLoadingPlain, handleOpenMemoModal]);
 
   // plainResponse가 변경될 때 대용량 데이터 확인
   useEffect(() => {
@@ -531,8 +550,9 @@ function DashboardPopupContent() {
         {/* 차트 영역 */}
         <div className="bg-white rounded-lg shadow-sm border border-border-light p-6" data-testid="chart-card">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-text-primary">
-              📈 데이터 차트
+            <h2 className="text-xl font-semibold text-text-primary flex items-center gap-2">
+              <div className="w-2 h-2 bg-primary-main rounded-full"></div>
+              데이터 차트
             </h2>
           </div>
           
@@ -642,15 +662,14 @@ function DashboardPopupContent() {
 
       {/* 쿼리메모 모달 */}
       {isMemoModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-[400px] max-w-[90vw] h-[90vh] min-h-[700px] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000] p-4">
+                      <div className="bg-white rounded-lg shadow-xl w-[500px] max-w-[90vw] h-[480px] min-h-[450px] overflow-hidden flex flex-col">
             {/* 모달 헤더 */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between p-3 border-b border-gray-200">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">쿼리메모</h3>
-                <p className="text-sm text-gray-500 mt-1">
-                  {apiQueryTitle || `쿼리 #${queryId}`}
-                </p>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  쿼리메모 <span className="text-sm text-gray-500 font-normal">(ID: {queryId})</span>
+                </h3>
               </div>
               <button
                 onClick={handleCloseMemoModal}
@@ -663,7 +682,7 @@ function DashboardPopupContent() {
             </div>
 
             {/* 모달 본문 */}
-            <div className="p-6 flex-1 flex flex-col">
+            <div className="p-3 flex-1 flex flex-col">
               <div className="flex-1 flex flex-col">
                 <label htmlFor="memo-textarea" className="block text-sm font-medium text-gray-700 mb-2">
                   메모 내용
@@ -673,7 +692,7 @@ function DashboardPopupContent() {
                   value={currentMemo}
                   onChange={(e) => setCurrentMemo(e.target.value)}
                   placeholder="이 쿼리에 대한 메모를 작성해주세요..."
-                  className="w-full flex-1 min-h-[300px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-main focus:border-primary-main resize-none"
+                  className="w-full flex-1 min-h-[180px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-main focus:border-primary-main resize-none"
                   maxLength={1000}
                 />
                 <div className="mt-2 text-xs text-gray-500 text-right">

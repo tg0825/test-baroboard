@@ -21,7 +21,7 @@
 - paragraph:
   - strong: 🔗 n8n 웹훅 연동
   - text: 로그인 요청이 n8n 워크플로우로 전송됩니다
-- paragraph: © 2024 AInity4 Team. All rights reserved.
+- paragraph: © 2025 AInity4 Team. All rights reserved.
 - button "💬"
 - contentinfo: 2025-08-20 17:21
 - alert: 로그인 - BaroBoard

@@ -33,7 +33,13 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ chartData }) => {
         return (
           <BarChart data={chartData.data}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey={chartData.xKey} />
+            <XAxis 
+              dataKey={chartData.xKey} 
+              angle={-45}
+              textAnchor="end"
+              height={80}
+              interval={0}
+            />
             <YAxis />
             <Tooltip />
             <Legend />
@@ -45,7 +51,13 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ chartData }) => {
         return (
           <LineChart data={chartData.data}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey={chartData.xKey} />
+            <XAxis 
+              dataKey={chartData.xKey} 
+              angle={-45}
+              textAnchor="end"
+              height={80}
+              interval={0}
+            />
             <YAxis />
             <Tooltip />
             <Legend />
@@ -75,7 +87,7 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ chartData }) => {
         </div>
       </div>
       <div className="bg-gray-50 rounded-lg p-4 border" data-testid="chart-content">
-        <ResponsiveContainer width="100%" height={500}>
+        <ResponsiveContainer width="100%" height={550}>
           {renderChart()}
         </ResponsiveContainer>
       </div>

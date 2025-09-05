@@ -1,17 +1,19 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import html2canvas from 'html2canvas';
 import ColumnContextMenu from './ColumnContextMenu';
 import ColumnSettingsModal from './ColumnSettingsModal';
 import Snackbar from './Snackbar';
+import AIChatModal from './AIChatModal';
 import ChartRenderer from './ChartRenderer';
 import DataTable from './DataTable';
 import MarkdownRenderer from './MarkdownRenderer';
 import { extractTableData, analyzeDataTypes, generateChartData } from '@/utils/dataUtils';
 import { callPreApi, callDetailApi, callPlainApi } from '@/utils/apiUtils';
-import { updateQueryMemo, getQueryMemo, createQueryMemo } from '@/utils/queryMemoUtils';
+import { updateQueryMemo, getQueryMemo, createQueryMemo, debugQueryMemoStorage } from '@/utils/queryMemoUtils';
 
 interface ApiResponse {
   data: string | unknown;
@@ -62,6 +64,7 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
   // 쿼리메모 관련 상태
   const [isMemoModalOpen, setIsMemoModalOpen] = useState(false);
   const [currentMemo, setCurrentMemo] = useState('');
+  const [isAIChatOpen, setIsAIChatOpen] = useState(false);
 
   // 차트 렌더링 관련 상태 (대용량 데이터 처리)
   const [shouldRenderChart, setShouldRenderChart] = useState(false); // 차트 렌더링 여부
@@ -104,17 +107,32 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
     });
   };
 
-  const handleColumnClick = (columnName: string, isShiftClick: boolean) => {
+  const handleColumnClick = (columnName: string, isCmdClick: boolean) => {
     const tableData = plainResponse ? extractTableData(plainResponse.data) : null;
     if (!tableData) return;
     
-    if (isShiftClick) {
+    console.log('🖱️ 컬럼 클릭:', columnName, 'Cmd 키:', isCmdClick);
+    
+    if (isCmdClick) {
       const columnTypes = analyzeDataTypes(tableData);
+      console.log('📊 컬럼 타입:', columnTypes[columnName]);
       if (columnTypes[columnName] === 'number') {
-        setSelectedYColumn(columnName === selectedYColumn ? null : columnName);
+        const newYColumn = columnName === selectedYColumn ? null : columnName;
+        console.log('✅ Y축 설정:', selectedYColumn, '->', newYColumn);
+        setSelectedYColumn(newYColumn);
+      } else {
+        console.log('❌ 숫자 컬럼이 아니므로 Y축 설정 불가');
+        // Y축 설정 불가 알림 표시
+        setSnackbar({
+          visible: true,
+          message: 'Y축은 숫자 컬럼만 설정할 수 있습니다.',
+          type: 'warning'
+        });
       }
     } else {
-      setSelectedXColumn(columnName === selectedXColumn ? null : columnName);
+      const newXColumn = columnName === selectedXColumn ? null : columnName;
+      console.log('✅ X축 설정:', selectedXColumn, '->', newXColumn);
+      setSelectedXColumn(newXColumn);
     }
   };
 
@@ -220,6 +238,14 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
   const handleSaveMemo = useCallback(async () => {
     if (!selectedQuery) return;
     
+    // 로그인 상태 확인
+    console.log('🔍 Checking login status for memo save...');
+    console.log('localStorage isLoggedIn:', localStorage.getItem('isLoggedIn'));
+    console.log('localStorage userEmail:', localStorage.getItem('userEmail'));
+    console.log('localStorage baroboard_user:', localStorage.getItem('baroboard_user'));
+    
+    console.log('🔍 MEMO SAVE: Using queryMemoUtils functions (user-query-memos collection)');
+    
     try {
       if (!currentMemo.trim()) {
         // 빈 메모인 경우 삭제
@@ -257,12 +283,16 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
         });
       }
       
-      setIsMemoModalOpen(false);
-      setCurrentMemo('');
+      // 디버깅: 메모가 어디에 저장되었는지 확인
+      await debugQueryMemoStorage(selectedQuery.id);
+      
+      // 팝업은 닫지 않고 메모 내용만 유지
+      // setIsMemoModalOpen(false);
+      // setCurrentMemo('');
     } catch (error) {
       console.error('Error saving memo:', error);
       setSnackbar({ 
-        message: '쿼리메모 저장 중 오류가 발생했습니다.', 
+        message: `메모 저장 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`, 
         visible: true, 
         type: 'error' 
       });
@@ -467,7 +497,7 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
       ]).then((results) => {
         if (results[0].status === 'fulfilled') {
           setDetailResponse(results[0].value);
-        } else {
+            } else {
           setError(`Detail API 오류: ${results[0].reason}`);
         }
         
@@ -621,6 +651,16 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
                     </svg>
                     쿼리메모
                   </button>
+
+                  <button
+                    onClick={() => { setIsAIChatOpen(true); setIsActionDropdownOpen(false); }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
+                  >
+                    <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-4l-4 4z" />
+                    </svg>
+                    AI 분석
+                  </button>
                   
                   <button
                     onClick={() => { handleSendSlack(); closeActionDropdown(); }}
@@ -723,18 +763,26 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
             
             {(() => {
               const tableData = plainResponse ? extractTableData(plainResponse.data) : null;
-              const chartData = tableData ? generateChartData(tableData) : null;
+              const chartData = tableData ? generateChartData(tableData, selectedXColumn, selectedYColumn) : null;
               
               return (
                 <>
-                  {/* 차트 영역 (두 번째) */}
-                  <div dangerouslySetInnerHTML={{ __html: '<!-- 차트 영역 (Plain API) -->' }} />
-                  <div className="bg-white rounded-lg shadow-sm border border-border-light p-6 mb-6" data-testid="chart-card">
-                    <div className="flex items-center justify-between mb-4">
-                      <h2 className="text-xl font-semibold text-text-primary">
-                        📈 데이터 차트
+                  {/* 데이터 분석 섹션 (차트 + 테이블 통합) */}
+                  <div dangerouslySetInnerHTML={{ __html: '<!-- 데이터 분석 섹션 (Plain API) -->' }} />
+                  <div className="bg-white rounded-lg shadow-sm border border-border-light p-6 mb-6" data-testid="data-analysis-card">
+                    <div className="flex items-center justify-between mb-6">
+                      <h2 className="text-xl font-semibold text-text-primary flex items-center gap-2">
+                        <div className="w-2 h-2 bg-primary-main rounded-full"></div>
+                        데이터 분석
                       </h2>
                     </div>
+
+                    {/* 차트 영역 */}
+                    <div className="mb-8">
+                      <h3 className="text-lg font-medium text-text-primary mb-4 flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                        차트 시각화
+                      </h3>
                     
                     {isLoadingPlain ? (
                       <div className="flex items-center justify-center py-16" data-testid="chart-loading">
@@ -813,21 +861,24 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
                         </div>
                       </div>
                     )}
-                  </div>
-
-                  {/* 테이블 영역 (세 번째) */}
-                  <div dangerouslySetInnerHTML={{ __html: '<!-- 테이블 영역 (Plain API) -->' }} />
-                  <div className="bg-white rounded-lg shadow-sm border border-border-light p-6" data-testid="table-card">
-                    <div className="flex items-center justify-between mb-4">
-                      <h2 className="text-xl font-semibold text-text-primary">
-                        📋 데이터 테이블
-                      </h2>
-                      {tableData && (
-                        <div className="text-sm text-text-muted">
-                          💡 컬럼 클릭: X축 • Shift+클릭: Y축 (숫자만)
-                        </div>
-                      )}
                     </div>
+
+                    {/* 테이블 영역 */}
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-medium text-text-primary flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                          데이터 테이블
+                        </h3>
+                        {tableData && (
+                          <div className="text-sm text-text-muted bg-blue-50 px-3 py-2 rounded-lg border border-blue-100">
+                            <div className="flex items-center gap-2">
+                              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                              <span>컬럼 클릭으로 X축 설정, Cmd+클릭으로 Y축 설정 (숫자 컬럼만)</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     
                     {isLoadingPlain ? (
                       <div className="flex items-center justify-center py-16" data-testid="table-loading">
@@ -885,8 +936,9 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
                           <p className="text-text-secondary font-medium">테이블 대기 중</p>
                           <p className="text-text-muted text-sm mt-1">쿼리를 선택하면 테이블이 표시됩니다</p>
                         </div>
-              </div>
-            )}
+                      </div>
+                    )}
+                    </div>
                   </div>
                 </>
               );
@@ -938,15 +990,14 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
 
         {/* 쿼리메모 모달 */}
         {isMemoModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl w-[400px] max-w-[90vw] h-[90vh] min-h-[700px] overflow-hidden flex flex-col">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000] p-4">
+            <div className="bg-white rounded-lg shadow-xl w-[500px] max-w-[90vw] h-[480px] min-h-[450px] overflow-hidden flex flex-col">
               {/* 모달 헤더 */}
-              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between p-3 border-b border-gray-200">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">쿼리메모</h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {selectedQuery?.name || `쿼리 #${selectedQuery?.id}`}
-                  </p>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    쿼리메모 <span className="text-sm text-gray-500 font-normal">(ID: {selectedQuery?.id})</span>
+                  </h3>
                 </div>
                 <button
                   onClick={handleCloseMemoModal}
@@ -959,7 +1010,7 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
               </div>
 
               {/* 모달 본문 */}
-              <div className="p-6 flex-1 flex flex-col">
+              <div className="p-3 flex-1 flex flex-col">
                 <div className="flex-1 flex flex-col">
                   <label htmlFor="memo-textarea" className="block text-sm font-medium text-gray-700 mb-2">
                     메모 내용
@@ -969,14 +1020,14 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
                     value={currentMemo}
                     onChange={(e) => setCurrentMemo(e.target.value)}
                     placeholder="이 쿼리에 대한 메모를 작성해주세요..."
-                    className="w-full flex-1 min-h-[300px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-main focus:border-primary-main resize-none"
+                    className="w-full flex-1 min-h-[180px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-main focus:border-primary-main resize-none"
                     maxLength={1000}
                   />
                   <div className="mt-2 text-xs text-gray-500 text-right">
                     {currentMemo.length}/1000
                   </div>
                 </div>
-              </div>
+      </div>
 
               {/* 모달 푸터 */}
               <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
@@ -1006,6 +1057,14 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
             onClose={() => setSnackbar({ ...snackbar, visible: false })}
           />
         )}
+
+        {/* AI 채팅 모달 */}
+        <AIChatModal
+          isOpen={isAIChatOpen}
+          onClose={() => setIsAIChatOpen(false)}
+          queryId={selectedQuery?.id || 0}
+          queryData={plainResponse ? extractTableData(plainResponse.data) : null}
+        />
           </div>
         </div>
     </div>

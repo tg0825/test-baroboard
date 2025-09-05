@@ -290,7 +290,7 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
         {/* 하단 정보 */}
         <div className="text-center mt-8">
           <p className="text-white/70 text-sm drop-shadow-md">
-            © 2024 AInity4 Team. All rights reserved.
+            © 2025 AInity4 Team. All rights reserved.
           </p>
         </div>
       </div>
