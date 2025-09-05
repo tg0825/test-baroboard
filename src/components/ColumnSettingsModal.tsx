@@ -42,7 +42,7 @@ const ColumnSettingsModal = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-sm h-[80vh] min-h-[500px] mx-4 flex flex-col">
         {/* 헤더 */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">컬럼 설정</h3>
@@ -57,7 +57,7 @@ const ColumnSettingsModal = ({
         </div>
 
         {/* 내용 */}
-        <div className="p-4 space-y-4 max-h-96 overflow-y-auto">
+        <div className="p-4 space-y-4 flex-1 overflow-y-auto">
           {/* 보이는 컬럼 */}
           <div>
             <h4 className="text-sm font-medium text-gray-900 mb-2 flex items-center gap-2">

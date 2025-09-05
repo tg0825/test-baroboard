@@ -14,6 +14,7 @@ interface SelectedQuery {
   redashData?: unknown;
   error?: string;
   timestamp: string;
+  user?: string | { name?: string; email?: string };
 }
 
 

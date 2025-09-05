@@ -11,7 +11,7 @@ export default function Home() {
   const router = useRouter();
   const { user, isLoading } = useAuth();
   const [isInitializing, setIsInitializing] = useState(true);
-  const [hasInitialized, setHasInitialized] = useState(false); // 중복 요청 방지
+  const [redirecting, setRedirecting] = useState(false); // 리다이렉트 상태
   const [queryId, setQueryId] = useState<number | undefined>(undefined);
   const apiData = useApiData();
 
@@ -57,15 +57,26 @@ export default function Home() {
 
   // 로그인 상태 확인
   useEffect(() => {
-    console.log('🏠 Home page - Auth check:', { isLoading, user: user?.isLoggedIn, email: user?.email });
+    console.log('🏠 Home page - Auth check:', { 
+      isLoading, 
+      userExists: !!user, 
+      isLoggedIn: user?.isLoggedIn, 
+      email: user?.email, 
+      redirecting 
+    });
     
-    if (!isLoading && !user?.isLoggedIn) {
-      console.log('❌ Home page - User not logged in, redirecting to login');
-      router.push('/login');
-    } else if (!isLoading && user?.isLoggedIn) {
-      console.log('✅ Home page - User is logged in');
+    if (!isLoading && !redirecting) {
+      // user가 null이거나 isLoggedIn이 false인 경우만 리다이렉트
+      if (user === null || (user && !user.isLoggedIn)) {
+        console.log('❌ Home page - User not authenticated, redirecting to login');
+        setRedirecting(true);
+        // 강제 페이지 이동으로 상태 리셋
+        window.location.href = '/login';
+      } else if (user?.isLoggedIn) {
+        console.log('✅ Home page - User is authenticated');
+      }
     }
-  }, [user, isLoading, router]);
+  }, [user, isLoading, redirecting, router]);
 
   // API 데이터 로드 함수
   const fetchPageData = useCallback(async (page: number = 1, searchQuery?: string) => {
@@ -82,19 +93,12 @@ export default function Home() {
 
   // 초기 데이터 로드
   useEffect(() => {
-    const initializeMainPage = async () => {
-      if (hasInitialized || isLoading || !user?.isLoggedIn) {
-        if (!isLoading) setIsInitializing(false);
-        return;
-      }
-
-      setHasInitialized(true);
+    if (user?.isLoggedIn && isInitializing) {
+      console.log('🔄 Loading initial data');
+      fetchPageData(1);
       setIsInitializing(false);
-      await fetchPageData(1);
-    };
-
-    initializeMainPage();
-  }, [user?.isLoggedIn, isLoading, hasInitialized, fetchPageData]);
+    }
+  }, [user?.isLoggedIn, isInitializing, fetchPageData]);
 
   if (isLoading || isInitializing) {
     return (

@@ -219,3 +219,94 @@
     transform: translate(-50%, 0);
   }
 }
+
+/* AInity4 무한 그라데이션 애니메이션 */
+@keyframes flowingGradient {
+  0% {
+    background-position: 200% 50%;
+  }
+  100% {
+    background-position: -200% 50%;
+  }
+}
+
+.flowing-gradient-ainity {
+  background: linear-gradient(
+    90deg,
+    #fde047, /* yellow-300 */
+    #f9a8d4, /* pink-300 */
+    #c4b5fd, /* purple-300 */
+    #93c5fd, /* blue-300 */
+    #67e8f9, /* cyan-300 */
+    #86efac, /* green-300 */
+    #fde047  /* yellow-300 - 루프를 위해 반복 */
+  );
+  background-size: 400% 400%;
+  animation: flowingGradient 4s linear infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.flowing-gradient-4 {
+  background: linear-gradient(
+    90deg,
+    #c4b5fd, /* purple-300 */
+    #93c5fd, /* blue-300 */
+    #67e8f9, /* cyan-300 */
+    #86efac, /* green-300 */
+    #fde047, /* yellow-300 */
+    #f9a8d4, /* pink-300 */
+    #c4b5fd  /* purple-300 - 루프를 위해 반복 */
+  );
+  background-size: 400% 400%;
+  animation: flowingGradient 4s linear infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* 글로우 효과용 무한 색상 변화 */
+@keyframes flowingGlow {
+  0% { color: #fde047; } /* yellow-300 */
+  16.66% { color: #f9a8d4; } /* pink-300 */
+  33.33% { color: #c4b5fd; } /* purple-300 */
+  50% { color: #93c5fd; } /* blue-300 */
+  66.66% { color: #67e8f9; } /* cyan-300 */
+  83.33% { color: #86efac; } /* green-300 */
+  100% { color: #fde047; } /* yellow-300 */
+}
+
+.flowing-glow-ainity {
+  animation: flowingGlow 4s linear infinite;
+}
+
+.flowing-glow-4 {
+  animation: flowingGlow 4s linear infinite;
+  animation-delay: 0.7s; /* 약간의 지연으로 다른 패턴 */
+}
+
+/* 언더라인 그라데이션 애니메이션 */
+@keyframes flowingUnderline {
+  0% {
+    background-position: 200% 50%;
+  }
+  100% {
+    background-position: -200% 50%;
+  }
+}
+
+.flowing-underline {
+  background: linear-gradient(
+    90deg,
+    #fde047, /* yellow-300 */
+    #f9a8d4, /* pink-300 */
+    #c4b5fd, /* purple-300 */
+    #93c5fd, /* blue-300 */
+    #67e8f9, /* cyan-300 */
+    #86efac, /* green-300 */
+    #fde047  /* yellow-300 - 루프를 위해 반복 */
+  );
+  background-size: 400% 400%;
+  animation: flowingUnderline 5s linear infinite;
+}

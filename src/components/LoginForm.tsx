@@ -118,9 +118,12 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
           console.log('✅ Logging in user:', userEmail, 'Session:', session);
           login(userEmail, session);
           
-          // 로그인 성공 후 메인 페이지로 이동
+          // 로그인 성공 후 메인 페이지로 이동 (상태 업데이트 완료 후)
           console.log('🚀 Redirecting to home page');
-          router.push('/');
+          // 상태가 완전히 업데이트되도록 다음 렌더 사이클에서 리다이렉트
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 100);
         } else {
           const errorData = await response.text();
           console.error('❌ Login failed:', response.status, errorData);

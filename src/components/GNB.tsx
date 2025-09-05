@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 const GNB = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [isInfoTooltipVisible, setIsInfoTooltipVisible] = useState(false);
+  const [isTeamTooltipVisible, setIsTeamTooltipVisible] = useState(false);
   const { user, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -178,34 +179,75 @@ const GNB = () => {
 
           {/* AInity4 로고 */}
           <div className="relative pl-4 border-l border-white border-opacity-20">
-            <div className="text-xl md:text-2xl font-black tracking-tighter relative italic transform -skew-x-12">
+            <div 
+              className="text-xl md:text-2xl font-black tracking-tighter relative italic transform -skew-x-12 cursor-pointer transition-all duration-300"
+              onMouseEnter={() => setIsTeamTooltipVisible(true)}
+              onMouseLeave={() => setIsTeamTooltipVisible(false)}
+            >
               {/* 메인 텍스트 */}
-              <span className="relative z-10 text-white">
+              <span className={`relative z-10 transition-all duration-500 ${
+                isTeamTooltipVisible 
+                  ? 'flowing-gradient-ainity' 
+                  : 'text-white'
+              }`}>
                 AInity
               </span>
-              <span className="relative z-10 text-white font-black">
+              <span className={`relative z-10 font-black transition-all duration-500 ${
+                isTeamTooltipVisible 
+                  ? 'flowing-gradient-4' 
+                  : 'text-white'
+              }`}>
                 4
               </span>
               
-              {/* 글로우 효과 */}
-              <div className="absolute inset-0 text-xl md:text-2xl font-black tracking-tighter italic">
-                <span className="text-white opacity-20 blur-sm">AInity</span>
-                <span className="text-white opacity-20 blur-sm font-black">4</span>
-              </div>
-              
-              {/* 메탈릭 하이라이트 */}
-              <div className="absolute inset-0 text-xl md:text-2xl font-black tracking-tighter italic">
-                <span className="bg-gradient-to-b from-white to-transparent bg-clip-text text-transparent opacity-30">
-                  AInity
-                </span>
-                <span className="bg-gradient-to-b from-white to-transparent bg-clip-text text-transparent opacity-30 font-black">
-                  4
-                </span>
-              </div>
+              {/* 부드러운 글로우 효과 (검정색 제거) */}
+              {isTeamTooltipVisible && (
+                <div className="absolute inset-0 text-xl md:text-2xl font-black tracking-tighter italic opacity-30">
+                  <span className="flowing-glow-ainity drop-shadow-lg">AInity</span>
+                  <span className="flowing-glow-4 font-black drop-shadow-lg">4</span>
+                </div>
+              )}
             </div>
             
-            {/* 언더라인 효과 */}
-            <div className="absolute -bottom-1 left-4 right-0 h-0.5 bg-white opacity-40 transform -skew-x-12"></div>
+            {/* 언더라인 효과 (호버 시 그라데이션) */}
+            <div className={`absolute -bottom-1 left-4 right-0 h-0.5 transform -skew-x-12 transition-all duration-500 ${
+              isTeamTooltipVisible 
+                ? 'flowing-underline opacity-80' 
+                : 'bg-white opacity-40'
+            }`}></div>
+            
+            {/* 팀원 툴팁 */}
+            {isTeamTooltipVisible && (
+              <div className="absolute top-full mt-3 right-0 w-56 bg-gray-900 text-white text-sm rounded-lg p-4 shadow-xl z-50 border border-gray-700">
+                <div className="text-center">
+                  <div className="text-primary-light font-bold mb-2">🌟 AInity4 팀원들</div>
+                  <div className="space-y-1 text-xs">
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-yellow-300">✨</span>
+                      <span>윤주희</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-pink-300">✨</span>
+                      <span>한세민</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-purple-300">✨</span>
+                      <span>심항보</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-blue-300">✨</span>
+                      <span>김경림</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-cyan-300">✨</span>
+                      <span>윤태건</span>
+                    </div>
+                  </div>
+                </div>
+                {/* 툴팁 화살표 */}
+                <div className="absolute -top-1 right-6 w-2 h-2 bg-gray-900 border-l border-t border-gray-700 rotate-45"></div>
+              </div>
+            )}
           </div>
         </div>
       </nav>

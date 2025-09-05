@@ -11,6 +11,7 @@ import {
   getRelativeTime,
   ViewHistoryItem 
 } from '@/utils/viewHistoryUtils';
+import { getAllQueryMemos, QueryMemo, hasQueryMemo } from '@/utils/queryMemoUtils';
 // Firebase 디버깅 도구는 보안 규칙 문제 해결을 위해 유지
 import '@/utils/firebaseDebug'; // Firebase 디버깅 함수 로드
 
@@ -28,7 +29,11 @@ const MyPage = () => {
   const [sortBy, setSortBy] = useState<'viewCount' | 'recent'>('viewCount'); // 정렬 기준
 
   // 메뉴 상태
-  const [activeMenu, setActiveMenu] = useState<'account' | 'history'>('history');
+  const [activeMenu, setActiveMenu] = useState<'account' | 'history' | 'memos'>('history');
+  
+  // 쿼리메모 관련 상태
+  const [memoList, setMemoList] = useState<QueryMemo[]>([]);
+  const [isLoadingMemos, setIsLoadingMemos] = useState(false);
 
   // 로그인 상태 확인
   useEffect(() => {
@@ -58,6 +63,19 @@ const MyPage = () => {
     }
   };
 
+  // 쿼리메모 리스트 로드
+  const loadMemoList = async () => {
+    setIsLoadingMemos(true);
+    try {
+      const memos = await getAllQueryMemos();
+      setMemoList(memos);
+    } catch (error) {
+      console.error('Error loading memo list:', error);
+    } finally {
+      setIsLoadingMemos(false);
+    }
+  };
+
   // 초기 조회 기록 로드 및 마이그레이션
   useEffect(() => {
     if (typeof window !== 'undefined' && user?.isLoggedIn) {
@@ -78,6 +96,15 @@ const MyPage = () => {
       migrateAndLoad();
     }
   }, [user?.isLoggedIn]);
+
+  // 메뉴 변경 시 데이터 로드
+  useEffect(() => {
+    if (user?.isLoggedIn) {
+      if (activeMenu === 'memos') {
+        loadMemoList();
+      }
+    }
+  }, [activeMenu, user?.isLoggedIn]);
 
   // 조회 기록이 변경되면 페이지를 1로 리셋
   useEffect(() => {
@@ -225,6 +252,23 @@ const MyPage = () => {
                 </button>
                 
                 <button
+                  onClick={() => setActiveMenu('memos')}
+                  className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 flex items-center gap-3 ${
+                    activeMenu === 'memos'
+                      ? 'bg-primary-pale text-primary-main border border-primary-light'
+                      : 'text-text-secondary hover:bg-gray-50 hover:text-text-primary'
+                  }`}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  <div>
+                    <div className="font-medium text-sm">쿼리메모</div>
+                    <div className="text-xs opacity-75">{memoList.length}개의 쿼리메모</div>
+                  </div>
+                </button>
+                
+                <button
                   onClick={() => setActiveMenu('account')}
                   className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 flex items-center gap-3 ${
                     activeMenu === 'account'
@@ -246,6 +290,88 @@ const MyPage = () => {
 
           {/* 오른쪽 메인 콘텐츠 */}
           <div className="flex-1">
+            {/* 쿼리메모 탭 */}
+            {activeMenu === 'memos' && (
+              <div className="bg-white rounded-lg shadow-sm border border-border-light">
+                {/* 헤더 */}
+                <div className="p-6 border-b border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-bold text-text-primary">쿼리메모</h2>
+                      <p className="text-sm text-text-muted">{memoList.length}개의 쿼리메모</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 쿼리메모 리스트 */}
+                <div className="p-0">
+                  {isLoadingMemos ? (
+                    <div className="text-center py-12">
+                      <div className="animate-spin w-8 h-8 border-4 border-primary-main border-t-transparent rounded-full mx-auto mb-4"></div>
+                      <p className="text-text-secondary">쿼리메모를 불러오는 중...</p>
+                    </div>
+                  ) : memoList.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="text-text-muted text-4xl mb-4">
+                        <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </div>
+                      <p className="text-text-secondary font-medium">아직 작성된 쿼리메모가 없습니다</p>
+                      <p className="text-text-muted">쿼리에 쿼리메모를 추가해보세요</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-100">
+                      {memoList.map((item, index) => (
+                        <div
+                          key={`${item.id}-${item.viewedAt}`}
+                          className="p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                          onClick={() => handleGoToQuery(item.id)}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-2">
+                                <h3 className="font-semibold text-text-primary truncate">
+                                  {item.name}
+                                </h3>
+                                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full flex-shrink-0">
+                                  {item.type}
+                                </span>
+                              </div>
+                              
+                              {/* 쿼리메모 내용 */}
+                              <div className="bg-amber-50 border-l-4 border-amber-300 p-3 mb-2 rounded-r">
+                                <p className="text-sm text-amber-800 whitespace-pre-wrap">
+                                  {item.memo}
+                                </p>
+                              </div>
+
+                              <div className="flex items-center gap-4 text-xs text-text-light">
+                                {item.queryUser && (
+                                  <span className="flex items-center gap-1">
+                                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                    </svg>
+                                    {item.queryUser}
+                                  </span>
+                                )}
+                                <span className="flex items-center gap-1">
+                                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  {getRelativeTime(item.updatedAt)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* 계정 정보 탭 */}
             {activeMenu === 'account' && (
               <div className="space-y-6">
@@ -485,6 +611,19 @@ const MyPage = () => {
                                 </div>
                                 {item.description && (
                                   <p className="text-sm text-text-muted truncate mb-1">{item.description}</p>
+                                )}
+                                {/* 쿼리메모 표시 */}
+                                {item.memo && (
+                                  <div className="bg-amber-50 border-l-4 border-amber-300 p-2 mb-2 rounded-r">
+                                    <div className="flex items-start gap-2">
+                                      <svg className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                      </svg>
+                                      <p className="text-sm text-amber-800 leading-relaxed">
+                                        {item.memo}
+                                      </p>
+                                    </div>
+                                  </div>
                                 )}
                                 <div className="flex items-center gap-4 text-xs text-text-light">
                                   {item.user && (

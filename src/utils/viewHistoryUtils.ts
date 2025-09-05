@@ -167,6 +167,44 @@ export const addToViewHistory = async (queryItem: {
   }
 };
 
+// 쿼리 메모 업데이트
+export const updateQueryMemo = async (queryId: number, memo: string): Promise<void> => {
+  try {
+    console.log('🔍 Updating memo for query:', queryId, 'memo:', memo);
+    
+    const userId = getCurrentUserId();
+    if (!userId) {
+      console.log('⚠️ No user logged in, skipping memo update');
+      return;
+    }
+
+    // 해당 쿼리의 기존 기록 찾기
+    const q = query(
+      collection(db, COLLECTION_NAME),
+      where('userId', '==', userId),
+      where('queryId', '==', queryId)
+    );
+    
+    const existingSnapshot = await getDocs(q);
+    
+    if (!existingSnapshot.empty) {
+      // 기존 기록이 있으면 메모 업데이트
+      const existingDoc = existingSnapshot.docs[0];
+      await updateDoc(doc(db, COLLECTION_NAME, existingDoc.id), {
+        memo: memo || null, // 빈 문자열인 경우 null로 저장
+      });
+      
+      console.log(`✅ Memo updated for query ${queryId}`);
+    } else {
+      console.log(`⚠️ No existing record found for query ${queryId}`);
+    }
+  } catch (error) {
+    console.error('❌ Error updating memo:', error);
+    throw error;
+  }
+};
+
+
 // 오래된 기록 정리 (최대 개수 초과 시)
 const cleanupOldHistory = async (userId: string): Promise<void> => {
   try {
@@ -383,5 +421,80 @@ export const migrateLocalStorageToFirestore = async (): Promise<void> => {
   } catch (error) {
     console.error('❌ Migration failed:', error);
     throw error;
+  }
+};
+
+// 특정 쿼리의 메모 가져오기
+export const getQueryMemo = async (queryId: number): Promise<string | null> => {
+  try {
+    const userId = getCurrentUserId();
+    if (!userId) {
+      console.warn('⚠️ No user logged in, cannot get query memo');
+      return null;
+    }
+
+    const q = query(
+      collection(db, COLLECTION_NAME),
+      where('userId', '==', userId),
+      where('queryId', '==', queryId)
+    );
+
+    const querySnapshot = await getDocs(q);
+    
+    if (querySnapshot.empty) {
+      return null; // 해당 쿼리에 대한 기록이 없음
+    }
+
+    const doc = querySnapshot.docs[0];
+    const data = doc.data() as FirestoreViewHistoryItem;
+    
+    return data.memo || null;
+  } catch (error) {
+    console.error('❌ Error getting query memo:', error);
+    return null;
+  }
+};
+
+// 메모가 있는 쿼리들만 가져오기 (메모 리스트용)
+export const getQueriesWithMemos = async (): Promise<ViewHistoryItem[]> => {
+  try {
+    const userId = getCurrentUserId();
+    if (!userId) {
+      console.warn('⚠️ No user logged in, cannot get queries with memos');
+      return [];
+    }
+
+    const q = query(
+      collection(db, COLLECTION_NAME),
+      where('userId', '==', userId),
+      where('memo', '!=', null), // memo가 null이 아닌 것만
+      orderBy('viewedAt', 'desc') // 최근 메모 업데이트 순
+    );
+
+    const querySnapshot = await getDocs(q);
+    const memos: ViewHistoryItem[] = [];
+
+    querySnapshot.forEach((doc) => {
+      const data = doc.data() as FirestoreViewHistoryItem;
+      if (data.memo && data.memo.trim()) { // 빈 문자열 제외
+        memos.push({
+          id: data.queryId,
+          name: data.queryName,
+          description: data.queryDescription,
+          type: data.queryType,
+          runtime: data.queryRuntime,
+          user: data.queryUser,
+          viewCount: data.viewCount || 1,
+          memo: data.memo,
+          viewedAt: data.viewedAt.toDate().toISOString(),
+          firestoreId: doc.id,
+        });
+      }
+    });
+
+    return memos;
+  } catch (error) {
+    console.error('❌ Error getting queries with memos:', error);
+    return [];
   }
 };

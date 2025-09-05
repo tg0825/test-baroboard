@@ -35,36 +35,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // 초기 로딩 시 localStorage에서 사용자 정보 복원
   useEffect(() => {
-    const initializeAuth = () => {
-      try {
-        const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-        const email = localStorage.getItem('userEmail');
-        const session = localStorage.getItem('userSession');
-        
-        console.log('🔐 Auth check - isLoggedIn:', isLoggedIn, 'Email:', email, 'Session:', session);
-        
-        if (isLoggedIn && email) {
-          console.log('✅ User logged in');
-          setUser({
-            email,
-            isLoggedIn: true,
-            session: session || undefined,
-          });
-        } else {
-          console.log('❌ User not logged in');
-        }
-      } catch (error) {
-        console.error('🚨 Auth initialization error:', error);
-      } finally {
-        setIsLoading(false);
+    try {
+      const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+      const email = localStorage.getItem('userEmail');
+      const session = localStorage.getItem('userSession');
+      
+      console.log('🔐 Auth initialization - isLoggedIn:', isLoggedIn, 'Email:', email);
+      
+      if (isLoggedIn && email) {
+        setUser({
+          email,
+          isLoggedIn: true,
+          session: session || undefined,
+        });
+      } else {
+        setUser(null);
       }
-    };
-
-    initializeAuth();
+    } catch (error) {
+      console.error('🚨 Auth initialization error:', error);
+      setUser(null);
+    }
+    setIsLoading(false);
   }, []);
 
   const login = (email: string, session?: string) => {
     console.log('🔐 AuthContext - login called with:', { email, session });
+    
+    // localStorage 먼저 업데이트
+    localStorage.setItem('isLoggedIn', 'true');
+    localStorage.setItem('userEmail', email);
+    if (session) {
+      localStorage.setItem('userSession', session);
+    }
     
     const userData = {
       email,
@@ -72,16 +74,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       session,
     };
     
+    // 상태 업데이트
     setUser(userData);
-    localStorage.setItem('isLoggedIn', 'true');
-    localStorage.setItem('userEmail', email);
     
-    if (session) {
-      localStorage.setItem('userSession', session);
-    }
-    
-    console.log('✅ AuthContext - user state updated:', userData);
-    console.log('💾 AuthContext - localStorage updated');
+    console.log('✅ AuthContext - login completed:', userData);
   };
 
   const logout = () => {

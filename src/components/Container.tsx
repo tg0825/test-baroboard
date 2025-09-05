@@ -11,6 +11,7 @@ import DataTable from './DataTable';
 import MarkdownRenderer from './MarkdownRenderer';
 import { extractTableData, analyzeDataTypes, generateChartData } from '@/utils/dataUtils';
 import { callPreApi, callDetailApi, callPlainApi } from '@/utils/apiUtils';
+import { updateQueryMemo, getQueryMemo, createQueryMemo } from '@/utils/queryMemoUtils';
 
 interface ApiResponse {
   data: string | unknown;
@@ -25,6 +26,7 @@ interface SelectedQuery {
   type: string;
   description: string;
   timestamp: string;
+  user?: string | { name?: string; email?: string };
 }
 
 interface ContainerProps {
@@ -56,6 +58,10 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
   const [isColumnSettingsVisible, setIsColumnSettingsVisible] = useState(false);
   const [snackbar, setSnackbar] = useState({ message: '', visible: false, type: 'info' as 'info'|'warning'|'error'|'success' });
   const [isActionDropdownOpen, setIsActionDropdownOpen] = useState(false);
+
+  // 쿼리메모 관련 상태
+  const [isMemoModalOpen, setIsMemoModalOpen] = useState(false);
+  const [currentMemo, setCurrentMemo] = useState('');
 
   // 차트 렌더링 관련 상태 (대용량 데이터 처리)
   const [shouldRenderChart, setShouldRenderChart] = useState(false); // 차트 렌더링 여부
@@ -190,6 +196,84 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
       setSnackbar({ message: '슬랙 전송 중 오류가 발생했습니다.', visible: true, type: 'error' });
     }
   }, [selectedQuery, detailResponse, extractQueryTitle]);
+
+  // 쿼리메모 모달 열기
+  const handleOpenMemoModal = useCallback(async () => {
+    if (!selectedQuery) return;
+    
+    try {
+      // 기존 메모 불러오기
+      const existingMemo = await getQueryMemo(selectedQuery.id);
+      setCurrentMemo(existingMemo?.memo || '');
+      setIsMemoModalOpen(true);
+      setIsActionDropdownOpen(false);
+    } catch (error) {
+      console.error('Error loading existing memo:', error);
+      // 에러가 발생해도 모달은 열기 (빈 상태로)
+      setCurrentMemo('');
+      setIsMemoModalOpen(true);
+      setIsActionDropdownOpen(false);
+    }
+  }, [selectedQuery]);
+
+  // 쿼리메모 저장
+  const handleSaveMemo = useCallback(async () => {
+    if (!selectedQuery) return;
+    
+    try {
+      if (!currentMemo.trim()) {
+        // 빈 메모인 경우 삭제
+        await updateQueryMemo(selectedQuery.id, '');
+        setSnackbar({ 
+          message: '쿼리메모가 삭제되었습니다.', 
+          visible: true, 
+          type: 'success' 
+        });
+      } else {
+        // 기존 메모가 있는지 확인
+        const existingMemo = await getQueryMemo(selectedQuery.id);
+        
+        if (existingMemo) {
+          // 기존 메모 업데이트
+          await updateQueryMemo(selectedQuery.id, currentMemo);
+        } else {
+          // 새 메모 생성
+          await createQueryMemo({
+            queryId: selectedQuery.id,
+            queryName: selectedQuery.name || `쿼리 #${selectedQuery.id}`,
+            queryDescription: selectedQuery.description || '',
+            queryType: selectedQuery.type || 'unknown',
+            queryUser: typeof selectedQuery.user === 'string' 
+              ? selectedQuery.user 
+              : (selectedQuery.user as any)?.name || (selectedQuery.user as any)?.email || '사용자',
+            memo: currentMemo,
+          });
+        }
+        
+        setSnackbar({ 
+          message: '쿼리메모가 저장되었습니다.', 
+          visible: true, 
+          type: 'success' 
+        });
+      }
+      
+      setIsMemoModalOpen(false);
+      setCurrentMemo('');
+    } catch (error) {
+      console.error('Error saving memo:', error);
+      setSnackbar({ 
+        message: '쿼리메모 저장 중 오류가 발생했습니다.', 
+        visible: true, 
+        type: 'error' 
+      });
+    }
+  }, [selectedQuery, currentMemo]);
+
+  // 쿼리메모 모달 닫기
+  const handleCloseMemoModal = useCallback(() => {
+    setIsMemoModalOpen(false);
+    setCurrentMemo('');
+  }, []);
 
   // 대시보드 캡쳐 함수
   const handleCapture = useCallback(async () => {
@@ -519,6 +603,16 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
                   <div className="border-t border-gray-100 my-1"></div>
                   
                   <button
+                    onClick={() => { handleOpenMemoModal(); }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
+                  >
+                    <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    쿼리메모
+                  </button>
+                  
+                  <button
                     onClick={() => { handleSendSlack(); closeActionDropdown(); }}
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
                   >
@@ -831,6 +925,77 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
           onToggleColumn={handleToggleColumn}
           onClose={() => setIsColumnSettingsVisible(false)}
         />
+
+        {/* 쿼리메모 모달 */}
+        {isMemoModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl w-[400px] max-w-[90vw] h-[90vh] min-h-[700px] overflow-hidden flex flex-col">
+              {/* 모달 헤더 */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">쿼리메모</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {selectedQuery?.name || `쿼리 #${selectedQuery?.id}`}
+                  </p>
+                </div>
+                <button
+                  onClick={handleCloseMemoModal}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* 모달 본문 */}
+              <div className="p-6 flex-1 flex flex-col">
+                <div className="flex-1 flex flex-col">
+                  <label htmlFor="memo-textarea" className="block text-sm font-medium text-gray-700 mb-2">
+                    메모 내용
+                  </label>
+                  <textarea
+                    id="memo-textarea"
+                    value={currentMemo}
+                    onChange={(e) => setCurrentMemo(e.target.value)}
+                    placeholder="이 쿼리에 대한 메모를 작성해주세요..."
+                    className="w-full flex-1 min-h-[300px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-main focus:border-primary-main resize-none"
+                    maxLength={1000}
+                  />
+                  <div className="mt-2 text-xs text-gray-500 text-right">
+                    {currentMemo.length}/1000
+                  </div>
+                </div>
+              </div>
+
+              {/* 모달 푸터 */}
+              <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
+                <button
+                  onClick={handleCloseMemoModal}
+                  className="px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleSaveMemo}
+                  className="px-4 py-2 text-sm text-white bg-primary-main border border-primary-main rounded-lg hover:bg-primary-dark transition-colors"
+                >
+                  저장
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 스낵바 */}
+        {snackbar.visible && (
+          <Snackbar
+            message={snackbar.message}
+            isVisible={snackbar.visible}
+            type={snackbar.type}
+            onClose={() => setSnackbar({ ...snackbar, visible: false })}
+          />
+        )}
           </div>
         </div>
     </div>
