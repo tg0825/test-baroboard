@@ -25,7 +25,7 @@ interface LNBProps {
     loading: boolean;
     error: string | null;
   };
-  onPageChange: (page: number) => void;
+  onPageChange: (page: number, searchQuery?: string) => void;
   selectedQueryId?: number | null;
 }
 
@@ -197,11 +197,7 @@ const queryList = React.useMemo((): QueryItem[] => {
     }
   }, [paginationInfo]);
 
-  // 검색어로 쿼리 리스트 필터링
-  const filteredQueryList = queryList.filter((query: QueryItem) =>
-    query.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (query.description && query.description.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  // 검색은 서버에서 처리하므로 클라이언트 필터링 제거
 
   const handleQueryClick = async (query: QueryItem) => {
     // runtime이 0이면 클릭 방지 및 스낵바 표시
@@ -222,6 +218,7 @@ const queryList = React.useMemo((): QueryItem[] => {
         description: query.description || '',
         type: query.type,
         runtime: query.runtime,
+        user: typeof query.user === 'string' ? query.user : (query.user as any)?.name || (query.user as any)?.email || '사용자',
       });
     } catch (error) {
       console.error('Error saving to view history:', error);
@@ -257,10 +254,17 @@ const queryList = React.useMemo((): QueryItem[] => {
   };
 
   // 페이지 변경 핸들러 (즉시 시각적 피드백 제공)
+  // 검색 핸들러
+  const handleSearch = () => {
+    setLoadingPage(1);
+    setLocalCurrentPage(1);
+    onPageChange(1, searchQuery); // 검색어와 함께 API 호출
+  };
+
   const handlePageChange = (page: number) => {
     setLoadingPage(page); // 로딩 상태 설정
     setLocalCurrentPage(page); // 즉시 UI 업데이트
-    onPageChange(page); // 실제 API 호출
+    onPageChange(page, searchQuery); // 검색어와 함께 API 호출
   };
 
 
@@ -361,39 +365,46 @@ const queryList = React.useMemo((): QueryItem[] => {
         
         {/* 검색 입력창 */}
         <div className="mb-4">
-        <div className="relative">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
           <input
             type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="쿼리 검색..."
-              className={`
-                w-full 
-                ${isMobile ? 'px-3 py-2 text-sm' : 'px-4 py-3 text-base'}
-                border border-border-light rounded-lg
-                bg-background-main text-text-primary
-                placeholder:text-text-muted
-                focus:outline-none focus:ring-2 focus:ring-primary-main focus:border-primary-main
-                transition-all duration-200
-              `}
-            />
-            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-text-muted">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSearch();
+                  }
+                }}
+                placeholder="쿼리 검색..."
+                className={`
+                  w-full 
+                  ${isMobile ? 'px-3 py-2 text-sm' : 'px-4 py-3 text-base'}
+                  border border-gray-200 rounded-lg
+                  bg-background-main text-text-primary
+                  placeholder:text-text-muted
+                  focus:outline-none focus:ring-2 focus:ring-primary-main focus:border-primary-main
+                  transition-all duration-200
+                `}
+              />
             </div>
-          </div>
-          {searchQuery && (
-            <div className={`
-              ${isMobile ? 'mt-2 text-xs' : 'mt-2 text-sm'} 
-              text-text-secondary
-            `}>
-              {filteredQueryList.length}개의 결과 찾음
+            <button
+              onClick={handleSearch}
+              className={`
+                px-4 py-2 bg-white border border-gray-200 rounded-lg cursor-pointer
+                hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 flex items-center justify-center shadow-sm
+                ${isMobile ? 'text-sm' : 'text-base'}
+              `}
+              title="검색"
+            >
+              <svg className="w-5 h-5 text-primary-main" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+            </button>
         </div>
-          )}
       </div>
 
-        <ul className="list-none p-0 m-0 flex-1 overflow-y-auto border border-border-light rounded-lg overflow-hidden">
+        <ul className="list-none p-0 m-0 flex-1 overflow-y-auto border border-gray-200 rounded-lg overflow-hidden">
           {apiData?.loading ? (
             <li className="text-center py-8">
             <div className="animate-spin w-6 h-6 border-2 border-primary-main border-t-transparent rounded-full mx-auto mb-2"></div>
@@ -406,7 +417,11 @@ const queryList = React.useMemo((): QueryItem[] => {
             </li>
           ) : apiData?.error ? (
             <li className="text-center py-8">
-              <div className="text-text-muted text-4xl mb-2">⚠️</div>
+              <div className="text-text-muted text-4xl mb-2">
+                <svg className="w-10 h-10 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
               <div className={`
                 ${isMobile ? 'text-sm' : 'text-base'} 
                 text-text-secondary font-medium mb-1
@@ -420,7 +435,7 @@ const queryList = React.useMemo((): QueryItem[] => {
                 {apiData.error}
               </div>
             </li>
-          ) : filteredQueryList.length === 0 ? (
+          ) : queryList.length === 0 ? (
             <li className="text-center py-8">
               <div className="text-text-muted text-4xl mb-2">
                 {queryList.length === 0 ? '📭' : '🔍'}
@@ -439,7 +454,7 @@ const queryList = React.useMemo((): QueryItem[] => {
           </div>
             </li>
           ) : (
-            filteredQueryList.map((query: QueryItem) => {
+            queryList.map((query: QueryItem) => {
               const isSelected = selectedQueryId === query.id;
               const isDisabled = query.runtimeValue === 0; // runtime이 0이면 비활성화
               
@@ -504,9 +519,6 @@ const queryList = React.useMemo((): QueryItem[] => {
                               : 'text-yellow-500'
                         }`}>⭐</span>
                       )}
-                      {isSelected && !isDisabled && (
-                        <span className="text-xs text-white">✓</span>
-                      )}
                     </div>
                     {query.updatedAt && (
                       <div className={`text-xs leading-none ml-2 flex-shrink-0 ${
@@ -542,14 +554,22 @@ const queryList = React.useMemo((): QueryItem[] => {
                         ? 'text-white text-opacity-80' 
                         : 'text-text-muted'
                   }`}>
-                    <span>👤 {query.user}</span>
+                    <span className="flex items-center gap-1">
+                      <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      {typeof query.user === 'string' ? query.user : (query.user as any)?.name || (query.user as any)?.email || '사용자'}
+                    </span>
                     {query.runtime && (
-                      <span className={
+                      <span className={`flex items-center gap-1 ${
                         query.runtimeValue > 15
                           ? (isSelected ? 'text-red-200' : 'text-red-600')
                           : ''
-                      }>
-                        ⏱️ {query.runtime}
+                      }`}>
+                        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {query.runtime}
                     </span>
                     )}
                   </div>
@@ -560,8 +580,8 @@ const queryList = React.useMemo((): QueryItem[] => {
         </ul>
 
         {/* 페이지네이션 */}
-        {paginationInfo && filteredQueryList.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-border-light">
+        {paginationInfo && queryList.length > 0 && (
+          <div className="mt-4">
             {(() => {
               const currentPage = localCurrentPage || paginationInfo.page;
               const totalPages = Math.ceil(paginationInfo.count / paginationInfo.pageSize);

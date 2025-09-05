@@ -7,7 +7,7 @@ interface ApiResponse {
 }
 
 // Pre API 호출
-export const callPreApi = async (id: number): Promise<{ latestQueryDataId: string; queryName?: string }> => {
+export const callPreApi = async (id: number): Promise<{ latestQueryDataId: string; queryName?: string; queryUser?: string }> => {
   const apiKey = localStorage.getItem('baroboard_api_key');
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -39,11 +39,28 @@ export const callPreApi = async (id: number): Promise<{ latestQueryDataId: strin
     console.log('❌ Pre API에서 제목 추출 실패, body:', preData?.body);
   }
 
+  // pre API 응답에서 작성자 정보 추출 (body.user)
+  const userRaw = (preData?.body as Record<string, unknown>)?.user;
+  let queryUser: string | undefined;
+  
+  if (typeof userRaw === 'string') {
+    queryUser = userRaw;
+    console.log('✅ Pre API에서 작성자 추출 (문자열):', queryUser);
+  } else if (userRaw && typeof userRaw === 'object') {
+    // user가 객체인 경우 name 속성을 추출
+    const userObj = userRaw as Record<string, unknown>;
+    queryUser = (userObj.name || userObj.email) as string;
+    console.log('✅ Pre API에서 작성자 추출 (객체):', queryUser);
+    console.log('🔍 User 객체 전체:', userRaw);
+  } else {
+    console.log('❌ Pre API에서 작성자 추출 실패, body.user:', userRaw);
+  }
+
   if (!latestQueryDataId) {
     throw new Error('latest_query_data_id를 찾을 수 없습니다.');
   }
 
-  return { latestQueryDataId, queryName };
+  return { latestQueryDataId, queryName, queryUser };
 };
 
 // Detail API 호출

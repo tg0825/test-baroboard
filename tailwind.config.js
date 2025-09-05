@@ -51,9 +51,9 @@ module.exports = {
         'text-light': '#adb5bd',
         'text-muted': '#9ca3af',
         
-        // 테두리
-        'border-main': '#e9ecef',
-        'border-light': '#f1f3f4',
+        // 테두리 (20% 강조)
+        'border-main': '#d1d5db', // 기존 #e9ecef에서 강화
+        'border-light': '#e5e7eb', // 기존 #f1f3f4에서 강화
         'border-primary': '#ffddcc',
       },
       boxShadow: {

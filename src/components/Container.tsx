@@ -437,9 +437,10 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
       paddingTop: '61px'
     }}
     className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative" data-testid="main-container">
-      <div className="w-full max-w-[1440px] mx-auto flex flex-col h-full">
+      {/* <div className="w-full max-w-[1440px] mx-auto flex flex-col h-full"> */}
+      <div className="w-full mx-auto flex flex-col h-full">
       <div dangerouslySetInnerHTML={{ __html: '<!-- 대시보드 헤더 영역 -->' }} />
-      <div className="border-b border-border-light p-4 bg-background-main">
+      <div className="border-b border-border-main p-4 bg-background-main">
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold text-text-primary" data-testid="dashboard-title">
@@ -830,8 +831,8 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
           onToggleColumn={handleToggleColumn}
           onClose={() => setIsColumnSettingsVisible(false)}
         />
-      </div>
-      </div>
+          </div>
+        </div>
     </div>
   );
 };

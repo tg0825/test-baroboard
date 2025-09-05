@@ -68,12 +68,12 @@ export default function Home() {
   }, [user, isLoading, router]);
 
   // API 데이터 로드 함수
-  const fetchPageData = useCallback(async (page: number = 1) => {
+  const fetchPageData = useCallback(async (page: number = 1, searchQuery?: string) => {
     if (!user?.isLoggedIn) return;
 
     try {
       apiData.setLoading(true);
-      const result = await fetchMainPageData(page, user.email, user.session);
+      const result = await fetchMainPageData(page, user.email, user.session, searchQuery);
       apiData.setMainPageData(result);
     } catch (error) {
       apiData.setError(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.');

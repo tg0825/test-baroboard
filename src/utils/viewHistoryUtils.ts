@@ -9,6 +9,8 @@ import {
   limit, 
   getDocs, 
   deleteDoc, 
+  updateDoc,
+  doc,
   Timestamp,
 } from 'firebase/firestore';
 
@@ -19,6 +21,8 @@ export interface ViewHistoryItem {
   type: string;
   viewedAt: string; // ISO string
   runtime?: string;
+  user?: string; // 작성자 이름
+  viewCount?: number; // 조회 횟수
   firestoreId?: string; // Firestore 문서 ID
 }
 
@@ -28,6 +32,8 @@ interface FirestoreViewHistoryItem {
   queryDescription?: string;
   queryType: string;
   queryRuntime?: string;
+  queryUser?: string; // 작성자 이름
+  viewCount?: number; // 조회 횟수
   userId: string;
   viewedAt: Timestamp;
   createdAt: Timestamp;
@@ -36,6 +42,36 @@ interface FirestoreViewHistoryItem {
 const COLLECTION_NAME = 'user_view_history';
 const MAX_HISTORY_ITEMS = 50; // 최대 저장 개수
 const STORAGE_KEY = 'baroboard_view_history'; // localStorage 키 (마이그레이션용)
+
+// 상대적 시간 표시 유틸리티 함수
+export const getRelativeTime = (dateString: string): string => {
+  const now = new Date();
+  const date = new Date(dateString);
+  const diffMs = now.getTime() - date.getTime();
+  
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const diffWeeks = Math.floor(diffDays / 7);
+  const diffMonths = Math.floor(diffDays / 30);
+  
+  if (diffMinutes < 1) {
+    return '방금 전';
+  } else if (diffMinutes < 60) {
+    return `${diffMinutes}분 전`;
+  } else if (diffHours < 24) {
+    return `${diffHours}시간 전`;
+  } else if (diffDays < 7) {
+    return `${diffDays}일 전`;
+  } else if (diffWeeks < 4) {
+    return `${diffWeeks}주 전`;
+  } else if (diffMonths < 12) {
+    return `${diffMonths}개월 전`;
+  } else {
+    const diffYears = Math.floor(diffDays / 365);
+    return `${diffYears}년 전`;
+  }
+};
 
 // 사용자 ID 가져오기 (로그인된 사용자의 이메일)
 const getCurrentUserId = (): string | null => {
@@ -55,16 +91,17 @@ const getCurrentUserId = (): string | null => {
   return null;
 };
 
-// Firestore에 조회 기록 저장
-export const addToViewHistory = async (query: {
+// Firestore에 조회 기록 저장 (조회 횟수 누적)
+export const addToViewHistory = async (queryItem: {
   id: number;
   name: string;
   description?: string;
   type: string;
   runtime?: string;
+  user?: string; // 작성자 이름
 }): Promise<void> => {
   try {
-    console.log('🔍 Attempting to save view history:', query);
+    console.log('🔍 Attempting to save view history:', queryItem);
     
     const userId = getCurrentUserId();
     console.log('🔍 Current user ID:', userId);
@@ -75,23 +112,52 @@ export const addToViewHistory = async (query: {
       return;
     }
 
-    // 중복 제거: 기존 같은 쿼리 ID 삭제
-    await removeFromViewHistory(query.id);
-
+    // 기존 기록 확인
+    const q = query(
+      collection(db, COLLECTION_NAME),
+      where('userId', '==', userId),
+      where('queryId', '==', queryItem.id)
+    );
+    
+    const existingSnapshot = await getDocs(q);
     const now = Timestamp.now();
-    const firestoreData: FirestoreViewHistoryItem = {
-      queryId: query.id,
-      queryName: query.name,
-      queryDescription: query.description || '',
-      queryType: query.type,
-      queryRuntime: query.runtime,
-      userId,
-      viewedAt: now,
-      createdAt: now,
-    };
 
-    const docRef = await addDoc(collection(db, COLLECTION_NAME), firestoreData);
-    console.log('✅ View history saved to Firestore:', docRef.id);
+    if (!existingSnapshot.empty) {
+      // 기존 기록이 있으면 조회 횟수 증가 및 조회 시간 업데이트
+      const existingDoc = existingSnapshot.docs[0];
+      const existingData = existingDoc.data() as FirestoreViewHistoryItem;
+      const currentViewCount = existingData.viewCount || 1;
+      
+      await updateDoc(doc(db, COLLECTION_NAME, existingDoc.id), {
+        viewCount: currentViewCount + 1,
+        viewedAt: now,
+        // 쿼리 정보도 최신으로 업데이트 (이름이나 설명이 변경될 수 있음)
+        queryName: queryItem.name,
+        queryDescription: queryItem.description || '',
+        queryType: queryItem.type,
+        queryRuntime: queryItem.runtime,
+        queryUser: queryItem.user,
+      });
+      
+      console.log(`✅ View count updated to ${currentViewCount + 1} for query ${queryItem.id}`);
+    } else {
+      // 새로운 기록 생성
+      const firestoreData: FirestoreViewHistoryItem = {
+        queryId: queryItem.id,
+        queryName: queryItem.name,
+        queryDescription: queryItem.description || '',
+        queryType: queryItem.type,
+        queryRuntime: queryItem.runtime,
+        queryUser: queryItem.user,
+        viewCount: 1,
+        userId,
+        viewedAt: now,
+        createdAt: now,
+      };
+
+      const docRef = await addDoc(collection(db, COLLECTION_NAME), firestoreData);
+      console.log('✅ New view history created in Firestore:', docRef.id);
+    }
 
     // 최대 개수 제한 확인 및 정리 (인덱스 생성 후 활성화)
     // await cleanupOldHistory(userId);
@@ -161,13 +227,15 @@ export const getViewHistory = async (): Promise<ViewHistoryItem[]> => {
         description: data.queryDescription,
         type: data.queryType,
         runtime: data.queryRuntime,
+        user: data.queryUser, // 작성자 정보 추가
+        viewCount: data.viewCount || 1, // 조회 횟수 추가 (기본값 1)
         viewedAt: data.viewedAt.toDate().toISOString(),
         firestoreId: doc.id,
       });
     });
 
-    // 클라이언트에서 최신순 정렬
-    history.sort((a, b) => new Date(b.viewedAt).getTime() - new Date(a.viewedAt).getTime());
+    // 클라이언트에서 조회 횟수 기준으로 정렬 (많이 본 순서)
+    history.sort((a, b) => (b.viewCount || 1) - (a.viewCount || 1));
 
     console.log(`✅ Loaded ${history.length} items from Firestore`);
     console.log('🔍 History items:', history);

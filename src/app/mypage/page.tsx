@@ -8,6 +8,7 @@ import {
   removeFromViewHistory, 
   clearViewHistory,
   migrateLocalStorageToFirestore,
+  getRelativeTime,
   ViewHistoryItem 
 } from '@/utils/viewHistoryUtils';
 // Firebase 디버깅 도구는 보안 규칙 문제 해결을 위해 유지
@@ -24,6 +25,7 @@ const MyPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10); // 페이지당 10개
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [sortBy, setSortBy] = useState<'viewCount' | 'recent'>('viewCount'); // 정렬 기준
 
   // 메뉴 상태
   const [activeMenu, setActiveMenu] = useState<'account' | 'history'>('history');
@@ -124,26 +126,47 @@ const MyPage = () => {
     }
   };
 
-  // 쿼리를 A4 비율 팝업으로 열기
+  // 쿼리를 대시보드 팝업으로 열기
   const handleGoToQuery = (queryId: number) => {
-    // A4 비율 (210:297) 팝업 크기 계산
-    const a4Width = 794;  // A4 너비 (픽셀)
-    const a4Height = 1123; // A4 높이 (픽셀)
+    // 기본 팝업 크기 (더 넓게 설정)
+    const popupWidth = 1200;  // 기본 너비
+    const popupHeight = 800;  // 기본 높이
+    
+    // 현재 브라우저 창 기준으로 중앙 위치 계산
+    const left = window.screenX + (window.outerWidth - popupWidth) / 2;
+    const top = window.screenY + (window.outerHeight - popupHeight) / 2;
     
     const popupUrl = `/dashboard-popup?queryId=${queryId}`;
-    const popupFeatures = `width=${a4Width},height=${a4Height},scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no,left=${(screen.width - a4Width) / 2},top=${(screen.height - a4Height) / 2}`;
+    const popupFeatures = `width=${popupWidth},height=${popupHeight},scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no,left=${left},top=${top}`;
     
     window.open(popupUrl, `query-popup-${queryId}`, popupFeatures);
   };
 
+  // 정렬된 데이터 생성
+  const sortedHistory = [...viewHistory].sort((a, b) => {
+    if (sortBy === 'viewCount') {
+      // 많이 본 순 (조회 횟수 내림차순)
+      return (b.viewCount || 1) - (a.viewCount || 1);
+    } else {
+      // 최근 본 순 (시간 내림차순)
+      return new Date(b.viewedAt).getTime() - new Date(a.viewedAt).getTime();
+    }
+  });
+
   // 페이지네이션 관련
-  const totalPages = Math.ceil(viewHistory.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedHistory.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentItems = viewHistory.slice(startIndex, endIndex);
+  const currentItems = sortedHistory.slice(startIndex, endIndex);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
+  };
+
+  // 정렬 기준 변경
+  const handleSortChange = (newSortBy: 'viewCount' | 'recent') => {
+    setSortBy(newSortBy);
+    setCurrentPage(1); // 정렬 변경 시 첫 페이지로 이동
   };
 
   if (isLoading) {
@@ -165,7 +188,7 @@ const MyPage = () => {
     <div className="min-h-screen bg-background-soft" style={{ paddingTop: user?.session ? '84px' : '60px' }}>
       {/* 헤더 */}
       <div className="bg-white border-b border-border-light">
-        <div className="max-w-4xl mx-auto px-4 py-6">
+        <div className="max-w-7xl mx-auto px-4 py-6">
           <div>
             <h1 className="text-2xl font-bold text-text-primary">마이페이지</h1>
             <p className="text-text-secondary mt-1">계정 정보 및 설정을 관리하세요</p>
@@ -371,14 +394,44 @@ const MyPage = () => {
                       <h2 className="text-xl font-bold text-text-primary">내가 본 쿼리</h2>
                       <p className="text-sm text-text-muted">{viewHistory.length}개의 기록</p>
                     </div>
-                    {viewHistory.length > 0 && (
-                      <button
-                        onClick={handleClearAllHistory}
-                        className="text-sm text-red-500 hover:text-red-600 font-medium"
-                      >
-                        전체삭제
-                      </button>
-                    )}
+                    <div className="flex items-center gap-4">
+                      {/* 정렬 버튼 */}
+                      {viewHistory.length > 0 && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-text-muted">정렬:</span>
+                          <div className="flex bg-gray-100 rounded-lg p-1">
+                            <button
+                              onClick={() => handleSortChange('viewCount')}
+                              className={`px-3 py-1 text-xs rounded-md transition-all duration-200 ${
+                                sortBy === 'viewCount'
+                                  ? 'bg-white text-primary-main shadow-sm font-medium'
+                                  : 'text-text-muted hover:text-text-primary'
+                              }`}
+                            >
+                              많이 본 순
+                            </button>
+                            <button
+                              onClick={() => handleSortChange('recent')}
+                              className={`px-3 py-1 text-xs rounded-md transition-all duration-200 ${
+                                sortBy === 'recent'
+                                  ? 'bg-white text-primary-main shadow-sm font-medium'
+                                  : 'text-text-muted hover:text-text-primary'
+                              }`}
+                            >
+                              최근 본 순
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      {viewHistory.length > 0 && (
+                        <button
+                          onClick={handleClearAllHistory}
+                          className="text-sm text-red-500 hover:text-red-600 font-medium"
+                        >
+                          전체삭제
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -414,32 +467,45 @@ const MyPage = () => {
                                     {item.type}
                                   </span>
                                   {item.runtime && (
-                                    <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full flex-shrink-0">
-                                      ⏱️ {item.runtime}
+                                    <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full flex-shrink-0 flex items-center gap-1">
+                                      <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                      </svg>
+                                      {item.runtime}
                                     </span>
                                   )}
+                                  {/* 조회 횟수 표시 */}
+                                  <span className="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded-full flex-shrink-0 flex items-center gap-1">
+                                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                    {item.viewCount || 1}회
+                                  </span>
                                 </div>
                                 {item.description && (
                                   <p className="text-sm text-text-muted truncate mb-1">{item.description}</p>
                                 )}
-                                <p className="text-xs text-text-light">
-                                  {new Date(item.viewedAt).toLocaleString('ko-KR')}
-                                </p>
+                                <div className="flex items-center gap-4 text-xs text-text-light">
+                                  {item.user && (
+                                    <span className="flex items-center gap-1">
+                                      <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                      </svg>
+                                      {item.user}
+                                    </span>
+                                  )}
+                                  <span className="flex items-center gap-1">
+                                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    {getRelativeTime(item.viewedAt)}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                             <div className="flex items-center gap-2 ml-4">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleGoToQuery(item.id);
-                                }}
-                                className="text-primary-main hover:text-primary-dark p-2 rounded transition-colors"
-                                title="팝업으로 보기"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                </svg>
-                              </button>
+                              
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();

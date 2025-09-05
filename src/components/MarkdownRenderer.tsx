@@ -70,19 +70,18 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
 
           // 목록 스타일링
           ul: ({ children, ...props }) => (
-            <ul className="mb-4 space-y-1.5 pl-5" {...props}>
+            <ul className="mb-4 space-y-1 pl-6 list-disc marker:text-primary-main" {...props}>
               {children}
             </ul>
           ),
           ol: ({ children, ...props }) => (
-            <ol className="mb-4 space-y-1.5 pl-5" {...props}>
+            <ol className="mb-4 space-y-1 pl-6 list-decimal marker:text-primary-main marker:font-bold" {...props}>
               {children}
             </ol>
           ),
           li: ({ children, ...props }) => (
-            <li className="text-text-secondary leading-relaxed relative flex items-start gap-2.5" {...props}>
-              <div className="w-1.5 h-1.5 bg-primary-main rounded-full mt-2.5 flex-shrink-0"></div>
-              <span className="flex-1">{children}</span>
+            <li className="text-text-secondary leading-relaxed text-sm pl-1" {...props}>
+              {children}
             </li>
           ),
 

@@ -58,18 +58,7 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ chartData }) => {
           </LineChart>
         );
 
-      case 'pie':
-        // 파이 차트는 비활성화됨 - 대신 막대 그래프를 표시
-        return (
-          <BarChart data={chartData.data}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey={chartData.xKey} />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Bar dataKey={chartData.yKey} fill={CHART_COLORS[0]} />
-          </BarChart>
-        );
+      // pie 차트 케이스 제거 - 타입에서 제거됨
 
       default:
         return <div>지원하지 않는 차트 타입입니다.</div>;
@@ -79,13 +68,10 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ chartData }) => {
   return (
     <div className="w-full mb-8" data-testid="chart-renderer">
       <div className="mb-4">
-        <h3 className="text-lg font-semibold text-text-primary mb-2">
-          📊 {chartData.title}
-        </h3>
+        
         <div className="text-sm text-text-muted">
           {chartData.type === 'bar' && '막대 차트'}
           {chartData.type === 'line' && '선 차트'}
-          {chartData.type === 'pie' && '막대 차트 (파이 차트 비활성화)'}
         </div>
       </div>
       <div className="bg-gray-50 rounded-lg p-4 border" data-testid="chart-content">

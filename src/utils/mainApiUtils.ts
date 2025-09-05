@@ -1,4 +1,4 @@
-export const fetchMainPageData = async (page: number = 1, userEmail?: string, userSession?: string) => {
+export const fetchMainPageData = async (page: number = 1, userEmail?: string, userSession?: string, searchQuery?: string) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000);
   
@@ -8,9 +8,22 @@ export const fetchMainPageData = async (page: number = 1, userEmail?: string, us
     ...(apiKey && { 'Authorization': `Key ${apiKey}` }),
   };
   
+  // URL 파라미터 구성
+  const params = new URLSearchParams({
+    email: userEmail || '',
+    session: userSession || '',
+    action: 'main_page_init',
+    page: page.toString(),
+  });
+  
+  // 검색어가 있으면 q 파라미터 추가
+  if (searchQuery && searchQuery.trim()) {
+    params.append('q', searchQuery.trim());
+  }
+  
   try {
     const response = await fetch(
-      `https://tg0825.app.n8n.cloud/webhook/54e868d6-9698-40e4-bcd7-331c40dff4b4?email=${encodeURIComponent(userEmail || '')}&session=${encodeURIComponent(userSession || '')}&action=main_page_init&page=${page}`,
+      `https://tg0825.app.n8n.cloud/webhook/54e868d6-9698-40e4-bcd7-331c40dff4b4?${params.toString()}`,
       {
         method: 'GET',
         headers,

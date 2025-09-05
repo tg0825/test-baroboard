@@ -28,6 +28,7 @@ function DashboardPopupContent() {
   const [isLoadingPlain, setIsLoadingPlain] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [apiQueryTitle, setApiQueryTitle] = useState<string | null>(null);
+  const [apiQueryUser, setApiQueryUser] = useState<string | null>(null);
   
   // 차트 렌더링 관련 상태 (대용량 데이터 처리)
   const [shouldRenderChart, setShouldRenderChart] = useState(false);
@@ -193,11 +194,15 @@ function DashboardPopupContent() {
       setError(null);
 
       try {
-        const { latestQueryDataId, queryName } = await callPreApi(parseInt(queryId));
+        const { latestQueryDataId, queryName, queryUser } = await callPreApi(parseInt(queryId));
         
         if (queryName) {
           setApiQueryTitle(queryName);
           document.title = `${queryName} (#${queryId}) - Baro Board`;
+        }
+        
+        if (queryUser) {
+          setApiQueryUser(queryUser);
         }
 
         // 병렬 API 호출
@@ -286,72 +291,80 @@ function DashboardPopupContent() {
   const chartData = tableData ? generateChartData(tableData) : null;
 
   return (
-    <div className="min-h-screen bg-background-soft relative" style={{ width: '794px', maxWidth: '794px', margin: '0 auto' }}>
-      {/* 우측 상단 액션 드롭다운 */}
-      <div className="fixed top-4 right-4 z-50" data-dropdown-container>
-        <div className="relative">
-          <button
-            onClick={toggleActionDropdown}
-            className="flex items-center gap-2 px-3 py-2 text-sm bg-white text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300 transition-all duration-200 shadow-sm"
-            title="더보기 옵션"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-            </svg>
-            더보기
-            <svg className={`w-3 h-3 transition-transform duration-200 ${isActionDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-
-          {isActionDropdownOpen && (
-            <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1">
-              <button
-                onClick={() => { handleCapture(); closeActionDropdown(); }}
-                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
-              >
-                <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                대시보드 캡쳐
-              </button>
-
-              <button
-                onClick={() => { handleOpenRedash(); closeActionDropdown(); }}
-                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
-              >
-                <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-                리대시에서 보기
-              </button>
-
-              <div className="border-t border-gray-100 my-1"></div>
-              
-              <button
-                onClick={() => { handleSendToSlack(); closeActionDropdown(); }}
-                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
-              >
-                <svg className="w-4 h-4 text-purple-500" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4-4m0 0l-4-4m4 4H3" />
-                </svg>
-                슬랙으로 보내기
-              </button>
+    <div className="min-h-screen bg-background-soft relative w-full max-w-full">
+      {/* 헤더 - 반응형 최적화 */}
+      <div className="bg-white border-b border-border-light px-6 py-4">
+        <div className="flex items-start justify-between">
+          <div className="text-left flex-1">
+            <h1 className="text-xl font-bold text-text-primary mb-1">
+              {apiQueryTitle || `쿼리 #${queryId}`}
+            </h1>
+            <div className="flex items-center gap-4 text-sm text-text-secondary">
+              {apiQueryUser && (
+                <span className="flex items-center gap-1">
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  {apiQueryUser}
+                </span>
+              )}
+              <span>생성일: {new Date().toLocaleString('ko-KR')}</span>
             </div>
-          )}
-        </div>
-      </div>
+          </div>
+          
+          {/* 우측 액션 드롭다운 */}
+          <div className="relative ml-4" data-dropdown-container>
+            <button
+              onClick={toggleActionDropdown}
+              className="flex items-center gap-2 px-3 py-2 text-sm bg-white text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300 transition-all duration-200 shadow-sm"
+              title="더보기 옵션"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+              </svg>
+              더보기
+              <svg className={`w-3 h-3 transition-transform duration-200 ${isActionDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
 
-      {/* 헤더 - A4 최적화 */}
-      <div className="bg-white border-b border-border-light p-4">
-        <div className="text-center">
-          <h1 className="text-xl font-bold text-text-primary mb-1">
-            {apiQueryTitle || `쿼리 #${queryId}`}
-          </h1>
-          <p className="text-text-secondary text-sm">
-            생성일: {new Date().toLocaleString('ko-KR')} | A4 대시보드
-          </p>
+            {isActionDropdownOpen && (
+              <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                <button
+                  onClick={() => { handleCapture(); closeActionDropdown(); }}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
+                >
+                  <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  대시보드 캡쳐
+                </button>
+
+                <button
+                  onClick={() => { handleOpenRedash(); closeActionDropdown(); }}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
+                >
+                  <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                  리대시에서 보기
+                </button>
+
+                <div className="border-t border-gray-100 my-1"></div>
+                
+                <button
+                  onClick={() => { handleSendToSlack(); closeActionDropdown(); }}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
+                >
+                  <svg className="w-4 h-4 text-purple-500" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4-4m0 0l-4-4m4 4H3" />
+                  </svg>
+                  슬랙으로 보내기
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -371,7 +384,7 @@ function DashboardPopupContent() {
       )}
 
       {/* 메인 콘텐츠 */}
-      <div className="p-6 space-y-6">
+      <div className="p-6 space-y-6 min-w-0">
         {/* AI 분석 영역 (메인 대시보드와 동일한 Markdown 렌더링) */}
         <div className="bg-white rounded-lg shadow-sm border border-border-light overflow-hidden" data-testid="ai-analysis-card">
           <div className="bg-white px-6 py-4 border-b border-gray-200">
