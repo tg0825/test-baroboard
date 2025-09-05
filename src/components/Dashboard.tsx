@@ -119,10 +119,12 @@ const Dashboard = ({ apiData, onPageChange, initialQueryId }: DashboardProps) =>
       />
       
       {/* 중앙 컨테이너 */}
-      <Container 
-        selectedQuery={selectedQuery} 
-        apiError={apiData.error} 
-      />
+      <div className="flex-1 min-w-0">
+        <Container 
+          selectedQuery={selectedQuery} 
+          apiError={apiData.error} 
+        />
+      </div>
     </div>
   );
 };

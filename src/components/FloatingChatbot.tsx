@@ -53,6 +53,9 @@ const FloatingChatbot = () => {
     return null;
   }
 
+  // 챗봇 버튼 숨김 - 개발 중
+  return null;
+
   return (
     <>
       {/* 떠있는 챗봇 버튼 */}

@@ -36,6 +36,25 @@ const LNB = ({ onQuerySelect, apiData, onPageChange, selectedQueryId }: LNBProps
   const [loadingPage, setLoadingPage] = useState<number | null>(null); // 로딩 중인 페이지
   const [localCurrentPage, setLocalCurrentPage] = useState<number | null>(null); // 로컬 현재 페이지
   
+  // LNB 상태 관리
+  const [isLNBOpen, setIsLNBOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('lnb-open');
+      return saved !== null ? saved === 'true' : true; // 기본값: 열림
+    }
+    return true;
+  });
+  
+  const [lnbWidth, setLnbWidth] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('lnb-width');
+      return saved ? parseInt(saved) : 320; // 기본값: 320px
+    }
+    return 320;
+  });
+  
+  const [isDragging, setIsDragging] = useState(false);
+  
   // 스낵바 상태
   const [snackbar, setSnackbar] = useState({
     message: '',
@@ -54,6 +73,58 @@ const LNB = ({ onQuerySelect, apiData, onPageChange, selectedQueryId }: LNBProps
     
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // LNB 상태 저장
+  useEffect(() => {
+    localStorage.setItem('lnb-open', isLNBOpen.toString());
+  }, [isLNBOpen]);
+
+  useEffect(() => {
+    localStorage.setItem('lnb-width', lnbWidth.toString());
+  }, [lnbWidth]);
+
+  // 햄버거 버튼 클릭 핸들러
+  const toggleLNB = () => {
+    setIsLNBOpen(!isLNBOpen);
+  };
+
+  // 드래그 리사이징 핸들러
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      
+      const newWidth = e.clientX;
+      const minWidth = 200;
+      const maxWidth = 600;
+      
+      if (newWidth >= minWidth && newWidth <= maxWidth) {
+        setLnbWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isDragging]);
 
 
 
@@ -196,15 +267,36 @@ const queryList = React.useMemo((): QueryItem[] => {
 
   return (
     <>
+      {/* 햄버거 메뉴 버튼 (데스크톱용) */}
+      {!isMobile && (
+        <button
+          onClick={toggleLNB}
+          className={`
+            fixed z-[9999] border rounded-lg cursor-pointer shadow-sm transition-all duration-200
+            w-10 h-10 flex items-center justify-center text-base
+            bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-700 hover:border-gray-300
+            ${isLNBOpen 
+              ? 'top-[80px]' 
+              : 'top-[80px] left-4'
+            }
+          `}
+          style={isLNBOpen ? { left: `${lnbWidth - 56}px` } : {}}
+          data-testid="lnb-toggle"
+          title={isLNBOpen ? "쿼리 목록 닫기" : "쿼리 목록 열기"}
+        >
+          {isLNBOpen ? '✕' : '☰'}
+        </button>
+      )}
+
       {/* 모바일 햄버거 메뉴 버튼 */}
       {isMobile && (
-              <button
-        onClick={toggleMobileMenu}
-        className="fixed top-[70px] left-5 z-[1001] bg-primary-main text-white border-none rounded-lg p-3 cursor-pointer text-lg shadow-button"
-        data-testid="mobile-menu-toggle"
-      >
-        {isMobileMenuOpen ? '✕' : '☰'}
-      </button>
+        <button
+          onClick={toggleMobileMenu}
+          className="fixed top-[70px] left-5 z-[1001] bg-primary-main text-white border-none rounded-lg p-3 cursor-pointer text-lg shadow-button"
+          data-testid="mobile-menu-toggle"
+        >
+          {isMobileMenuOpen ? '✕' : '☰'}
+        </button>
       )}
 
       {/* 모바일 오버레이 */}
@@ -218,20 +310,34 @@ const queryList = React.useMemo((): QueryItem[] => {
       {/* 사이드바 */}
       <div 
         className={`
-          ${isMobile ? 'w-[300px] min-w-[300px]' : 'w-[35%] min-w-[300px]'} 
-          bg-background-soft p-4 overflow-y-auto flex-shrink-0
-          ${isMobile ? 'fixed' : 'relative'}
-          ${isMobile ? 'top-15' : 'top-0'}
+          bg-background-soft overflow-y-auto flex-shrink-0 relative
+          ${isMobile ? 'w-[300px] min-w-[300px] fixed top-15 h-[calc(100vh-92px)]' : 'h-full'}
           ${isMobile && !isMobileMenuOpen ? '-left-[300px]' : 'left-0'}
-          ${isMobile ? 'h-[calc(100vh-92px)]' : 'h-full'}
+          ${!isMobile && !isLNBOpen ? 'w-0 min-w-0 p-0' : !isMobile ? `p-4` : 'p-4'}
           z-[1000] transition-all duration-300 ease-in-out
           ${isMobile ? 'shadow-medium' : ''}
           border-r border-border-light mobile-hide-scrollbar
           pt-20 flex flex-col
         `}
+        style={!isMobile && isLNBOpen ? { width: `${lnbWidth}px`, minWidth: `${lnbWidth}px` } : {}}
         data-testid="lnb-container"
       >
-        <div className="mb-5">
+        {/* 데스크톱 드래그 핸들 */}
+        {!isMobile && isLNBOpen && (
+          <div
+            onMouseDown={handleMouseDown}
+            className={`
+              absolute top-0 right-0 w-1 h-full cursor-col-resize bg-transparent hover:bg-primary-light transition-colors duration-200 z-10
+              ${isDragging ? 'bg-primary-main' : ''}
+            `}
+            title="드래그하여 크기 조절"
+          />
+        )}
+
+        {/* LNB 콘텐츠 - 닫혀있을 때는 숨김 */}
+        {(!isMobile && isLNBOpen) || (isMobile && isMobileMenuOpen) || isMobile ? (
+          <>
+            <div className="mb-5">
           <h2 className={`
             ${isMobile ? 'mt-0 mb-2 text-lg' : 'mt-0 mb-2 text-xl'} 
             text-text-primary font-semibold
@@ -272,7 +378,9 @@ const queryList = React.useMemo((): QueryItem[] => {
               `}
             />
             <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-text-muted">
-              🔍
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
             </div>
           </div>
           {searchQuery && (
@@ -442,7 +550,7 @@ const queryList = React.useMemo((): QueryItem[] => {
                           : ''
                       }>
                         ⏱️ {query.runtime}
-                      </span>
+                    </span>
                     )}
                   </div>
                 </li>
@@ -612,6 +720,8 @@ const queryList = React.useMemo((): QueryItem[] => {
             
           </div>
         )}
+          </>
+        ) : null}
       </div>
 
       {/* 스낵바 */}
