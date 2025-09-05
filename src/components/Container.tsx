@@ -440,8 +440,15 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
     }
   }, [apiQueryTitle, selectedQuery?.id, extractQueryTitle]);
 
-  // API 호출 함수
+  // API 호출 함수 (중복 호출 방지)
   const fetchDetailAndPlainApi = useCallback(async (id: number) => {
+    // 이미 로딩 중이면 중복 호출 방지
+    if (isLoadingDetail || isLoadingPlain) {
+      console.log('⚠️ API 이미 호출 중 - 중복 호출 방지');
+      return;
+    }
+    
+    console.log('🚀 API 호출 시작 - 쿼리 ID:', id);
     setIsLoadingDetail(true);
     setIsLoadingPlain(true);
     setError(null);
@@ -453,14 +460,14 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
         setApiQueryTitle(queryName);
       }
 
-      // 병렬 API 호출
+      // 병렬 API 호출 (한 번만)
       Promise.allSettled([
         callDetailApi(id, latestQueryDataId),
         callPlainApi(id, latestQueryDataId)
       ]).then((results) => {
         if (results[0].status === 'fulfilled') {
           setDetailResponse(results[0].value);
-            } else {
+        } else {
           setError(`Detail API 오류: ${results[0].reason}`);
         }
         
@@ -472,18 +479,21 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
         
         setIsLoadingDetail(false);
         setIsLoadingPlain(false);
+        console.log('✅ API 호출 완료 - 쿼리 ID:', id);
       });
 
     } catch (err) {
+      console.error('❌ API 호출 실패:', err);
       setError(`API 호출 중 오류가 발생했습니다: ${err}`);
       setIsLoadingDetail(false);
       setIsLoadingPlain(false);
     }
-  }, []);
+  }, [isLoadingDetail, isLoadingPlain]);
 
-  // 선택된 쿼리가 변경될 때 API 호출
+  // 선택된 쿼리가 변경될 때 API 호출 (한 번만)
   useEffect(() => {
     if (selectedQuery && selectedQuery.id) {
+      console.log('🔄 API 호출 - 쿼리 ID:', selectedQuery.id, '- ONE TIME ONLY');
       setDetailResponse(null);
       setPlainResponse(null);
       setSelectedXColumn(null); // 차트 축 초기화
@@ -491,7 +501,7 @@ const Container = ({ selectedQuery, apiError }: ContainerProps) => {
       setCurrentPage(1); // 페이지네이션 초기화
       fetchDetailAndPlainApi(selectedQuery.id);
     }
-  }, [selectedQuery, fetchDetailAndPlainApi]);
+  }, [selectedQuery?.id]); // selectedQuery 전체가 아닌 id만 의존성으로 설정해서 중복 호출 방지
 
   // plainResponse가 변경될 때 기본 선택된 축을 상태에 반영 및 대용량 데이터 확인
   useEffect(() => {

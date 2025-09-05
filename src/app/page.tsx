@@ -78,36 +78,43 @@ export default function Home() {
     }
   }, [user, isLoading, redirecting, router]);
 
-  // API 데이터 로드 함수
+  // API 데이터 로드 함수 (중복 호출 방지)
   const fetchPageData = useCallback(async (page: number = 1, searchQuery?: string) => {
     if (!user?.isLoggedIn) return;
+    
+    // 이미 로딩 중이면 중복 호출 방지
+    if (apiData.loading) {
+      console.log('⚠️ 메인 API 이미 호출 중 - 중복 호출 방지');
+      return;
+    }
 
     try {
+      console.log('🚀 메인 API 호출 시작 - 페이지:', page);
       apiData.setLoading(true);
       const result = await fetchMainPageData(page, user.email, user.session, searchQuery);
+      console.log('✅ 메인 API 호출 성공');
       apiData.setMainPageData(result);
     } catch (error) {
+      console.error('❌ 메인 API 호출 실패:', error);
       apiData.setError(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.');
     }
   }, [user?.isLoggedIn, user?.email, user?.session, apiData]);
 
-  // 초기 데이터 로드
+  // 초기 데이터 로드 (한 번만 실행)
   useEffect(() => {
     if (user?.isLoggedIn && isInitializing) {
-      console.log('🔄 Loading initial data');
+      console.log('🔄 Loading initial data - ONE TIME ONLY');
       fetchPageData(1);
       setIsInitializing(false);
     }
-  }, [user?.isLoggedIn, isInitializing, fetchPageData]);
+  }, [user?.isLoggedIn, isInitializing]); // fetchPageData 의존성 제거로 중복 호출 방지
 
   if (isLoading || isInitializing) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin w-8 h-8 border-4 border-primary-main border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-text-secondary">
-            {isLoading ? '로딩 중...' : '초기화 중...'}
-          </p>
+          <p className="text-text-secondary">로딩 중...</p>
         </div>
       </div>
     );
